@@ -5,6 +5,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
+import com.google.gson.Gson; // Added import
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.google.gson.JsonSyntaxException;
@@ -80,7 +81,8 @@ public class NettyWebAPIHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
         try {
             String jsonPayload = msg.content().toString(StandardCharsets.UTF_8);
-            CrashReportPayload payload = Launcher.gsonManager.gson.fromJson(jsonPayload, CrashReportPayload.class);
+            Gson localGson = new Gson();
+            CrashReportPayload payload = localGson.fromJson(jsonPayload, CrashReportPayload.class);
 
             if (payload == null || payload.username == null || payload.fileName == null || payload.content == null ||
                 payload.username.isEmpty() || payload.fileName.isEmpty()) {
@@ -117,7 +119,10 @@ public class NettyWebAPIHandler extends SimpleChannelInboundHandler<FullHttpRequ
             LogHelper.warning("Invalid JSON received for /crashreport: %s", e.getMessage());
             handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.BAD_REQUEST, "Invalid JSON format"));
         } catch (Exception e) {
-            LogHelper.error("Error processing /crashreport request", e);
+            LogHelper.error("Error processing /crashreport request. Exception type: " + e.getClass().getName() + ", Message: " + e.getMessage(), e); // Log with more details
+            System.err.println("BEGIN STACK TRACE FOR /crashreport ERROR"); // Marker for easy log finding
+            e.printStackTrace(System.err); // Print stack trace to stderr
+            System.err.println("END STACK TRACE FOR /crashreport ERROR");   // Marker
             handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, "Internal server error"));
         } finally {
             // msg.release(); // FullHttpRequest is auto-released by SimpleChannelInboundHandler if not passed to next handler

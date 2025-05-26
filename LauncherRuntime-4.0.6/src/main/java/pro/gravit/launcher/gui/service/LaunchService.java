@@ -352,34 +352,20 @@ public class LaunchService {
                 payload.put("content", reportContent);
                 String jsonPayload = Launcher.gsonManager.gson.toJson(payload);
 
-                String serverWsAddress = Launcher.getConfig().address;
-                String serverHttpAddress;
-                if (serverWsAddress == null || serverWsAddress.isEmpty()) {
+                String wsAddress = Launcher.getConfig().address;
+                if (wsAddress == null || wsAddress.isEmpty()) {
                     LogHelper.error("Launcher WebSocket address is not configured. Cannot send crash report.");
                     return;
                 }
-                if (serverWsAddress.startsWith("ws://")) {
-                    serverHttpAddress = serverWsAddress.replace("ws://", "http://");
-                } else if (serverWsAddress.startsWith("wss://")) {
-                    serverHttpAddress = serverWsAddress.replace("wss://", "https://");
-                } else {
-                    LogHelper.error("Unknown WebSocket protocol in address: %s. Cannot determine HTTP address for crash report.", serverWsAddress);
-                    return;
-                }
-                // Remove /api if present, as crashreport is likely a separate endpoint path
-                if(serverHttpAddress.endsWith("/api")) {
-                    serverHttpAddress = serverHttpAddress.substring(0, serverHttpAddress.length() - "/api".length());
-                } else if(serverHttpAddress.endsWith("/api/")) {
-                    serverHttpAddress = serverHttpAddress.substring(0, serverHttpAddress.length() - "/api/".length());
-                }
+                java.net.URI wsUri = java.net.URI.create(wsAddress);
+                String scheme = wsUri.getScheme().equals("wss") ? "https" : "http";
+                String crashReportUrl = new java.net.URI(scheme, null, wsUri.getHost(), wsUri.getPort(), "/crashreport", null, null).toString();
 
-
-                String serverUrl = serverHttpAddress + "/crashreport";
-                LogHelper.debug("Sending crash report to %s", serverUrl);
+                LogHelper.debug("Sending crash report to %s", crashReportUrl);
 
                 HttpClient client = HttpClient.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(serverUrl))
+                        .uri(java.net.URI.create(crashReportUrl))
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                         .build();
