@@ -4,6 +4,7 @@ def mainAgentName = "pro.gravit.launchserver.StarterAgent"
 evaluationDependsOn(':Launcher')
 
 repositories {
+    mavenCentral()
     maven {
         url "https://oss.sonatype.org/content/repositories/snapshots"
     }
@@ -102,6 +103,9 @@ dependencies {
     bundle group: 'com.google.code.gson', name: 'gson', version: rootProject['verGson']
     annotationProcessor(group: 'org.apache.logging.log4j', name: 'log4j-core', version: rootProject['verLog4j'])
     testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: rootProject['verJunit']
+    testImplementation 'org.mockito:mockito-core:5.11.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.11.0'
+    testImplementation 'org.mockito:mockito-inline:5.11.0'
 
     hikari 'io.micrometer:micrometer-core:1.13.1'
     hikari('com.zaxxer:HikariCP:5.1.0') {

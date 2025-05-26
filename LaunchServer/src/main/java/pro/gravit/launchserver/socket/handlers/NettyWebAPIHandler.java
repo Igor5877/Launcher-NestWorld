@@ -70,7 +70,7 @@ public class NettyWebAPIHandler extends SimpleChannelInboundHandler<FullHttpRequ
         return sanitized;
     }
 
-    private static void handleCrashReportRequest(ChannelHandlerContext ctx, FullHttpRequest msg, NettyConnectContext context) {
+    public static void handleCrashReportRequest(ChannelHandlerContext ctx, FullHttpRequest msg, NettyConnectContext context) {
         SimpleSeverletHandler handler = (c, m, cc) -> {}; // Dummy for utility methods
 
         if (!msg.method().equals(HttpMethod.POST)) {
