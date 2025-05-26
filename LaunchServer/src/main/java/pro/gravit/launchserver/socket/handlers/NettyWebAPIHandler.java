@@ -38,7 +38,7 @@ public class NettyWebAPIHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
     private final NettyConnectContext context;
     private transient final Logger logger = LogManager.getLogger(); // Main logger
-    private transient final Logger crashReportLogger = LogManager.getLogger("CrashReport"); // Specific logger
+    private static final Logger crashReportLogger = LogManager.getLogger("CrashReport"); // Specific logger
 
     private static final Pattern SAFE_CHARS_PATTERN = Pattern.compile("[^a-zA-Z0-9_.-]");
 
@@ -117,7 +117,7 @@ public class NettyWebAPIHandler extends SimpleChannelInboundHandler<FullHttpRequ
             LogHelper.warning("Invalid JSON received for /crashreport: %s", e.getMessage());
             handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.BAD_REQUEST, "Invalid JSON format"));
         } catch (Exception e) {
-            LogHelper.error(e, "Error processing /crashreport request");
+            LogHelper.error("Error processing /crashreport request", e);
             handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, "Internal server error"));
         } finally {
             // msg.release(); // FullHttpRequest is auto-released by SimpleChannelInboundHandler if not passed to next handler
