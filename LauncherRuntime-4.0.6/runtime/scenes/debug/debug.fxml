@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.String?>
+<?import java.net.URL?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+
+<AnchorPane fx:id="layout" prefHeight="560.0" prefWidth="930.0" styleClass="background" stylesheets="@debug.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+
+   <!-- Навбар -->
+   <AnchorPane id="header" prefHeight="100.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+      <fx:include source="../../components/buttons/back.fxml" AnchorPane.leftAnchor="28.0" AnchorPane.topAnchor="34.0" />
+      <Label maxWidth="400.0" prefHeight="32.0" styleClass="scene-header" text="%runtime.scenes.debug.headingDebug" AnchorPane.leftAnchor="73.0" AnchorPane.topAnchor="34.0" />
+      <!-- Версия Java -->
+      <Label id="version" alignment="CENTER_RIGHT" contentDisplay="RIGHT" disable="true" maxWidth="600.0" opacity="0.0" prefHeight="20.0" text="Launcher 5.1.0.0 Java: 1.8 u231 x64" textFill="#b3b8d5" AnchorPane.leftAnchor="73.0" AnchorPane.topAnchor="66.0" />
+      <!-- Кнопки управления -->
+      <HBox id="controls" spacing="10.0" AnchorPane.rightAnchor="29.0" AnchorPane.topAnchor="34.0">
+         <fx:include source="../../components/buttons/copy.fxml" />
+         <fx:include source="../../components/buttons/kill.fxml" />
+         <fx:include source="../../components/buttons/minimize.fxml" />
+         <fx:include source="../../components/buttons/exit.fxml" />
+      </HBox>
+   </AnchorPane>
+
+   <StackPane id="output-detail" layoutX="20.0" layoutY="98.0" prefHeight="381.0" prefWidth="860.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="50.0" AnchorPane.rightAnchor="50.0" AnchorPane.topAnchor="110.0">
+      <TextArea id="output" editable="false" layoutX="7.0" layoutY="6.0" wrapText="true">
+         <padding>
+            <Insets bottom="15.0" left="20.0" right="20.0" top="15.0" />
+         </padding>
+      </TextArea>
+   </StackPane>
+</AnchorPane>

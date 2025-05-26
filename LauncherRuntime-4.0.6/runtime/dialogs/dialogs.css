@@ -1,0 +1,44 @@
+/*-- Блок диалога --*/
+.dialog {
+    -fx-background-color: -fx-colors-base;
+    -fx-border-color: -fx-colors-base;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 30, 0.1, 0.0, 0.0);
+    -fx-border-radius: 20px;
+    -fx-background-radius: 20px;
+    -fx-padding: 10px;
+}
+#textDialog {
+    -fx-background-color: -fx-bg2;
+    -fx-background-radius: 10px;
+    -fx-text-fill: -fx-colors-text;
+    -fx-font-size: 12px;
+    -fx-padding: 10px 15px 10px 15px;
+}
+#headingDialog {
+    -fx-font-weight: 800;
+    -fx-font-size: 16px;
+}
+/*-- Текст диалога --*/
+.dialog-button {
+    -fx-background-color: transparent;
+    -fx-border-style: solid;
+    -fx-border-width: 2px;
+    -fx-border-radius: 3px;
+}
+.dialog-apply-button {
+    -fx-border-color: -fx-green;
+    -fx-text-fill: -fx-green;
+}
+.dialog-apply-button:hover {
+    -fx-background-color: -fx-green;
+    -fx-text-fill: -fx-colors-base;
+}
+.dialog-deny-button {
+    -fx-border-color: -fx-red;
+    -fx-text-fill: -fx-red;
+}
+.dialog-deny-button:hover {
+    -fx-background-color: -fx-red;
+    -fx-text-fill: -fx-colors-base;
+}
+

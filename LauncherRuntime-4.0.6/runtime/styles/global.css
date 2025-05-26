@@ -1,0 +1,303 @@
+/*-- Подключение шрифтов --*/
+@font-face {
+    -fx-font-family: 'Comfortaa';
+    src: url('./Comfortaa-Regular.ttf');
+}
+@font-face {
+    -fx-font-family: 'Comfortaa Bold';
+    src: url('./Comfortaa-Bold.ttf');
+}
+@font-face {
+    -fx-font-family: 'Comfortaa Light';
+    src: url('./Comfortaa-Light.ttf');
+}
+@font-face {
+    -fx-font-family: 'Comfortaa SemiBold';
+    src: url('./Comfortaa-SemiBold.ttf');
+}
+@font-face {
+    -fx-font-family: 'Comfortaa Medium';
+    src: url('./Comfortaa-Medium.ttf');
+}
+Button,
+CheckBox,
+ComboBox {
+    -fx-cursor: hand;
+}
+.root {
+    -fx-background-color: transparent;
+    /* Подключение Font Family Шрифтов */
+    -fx-font-family: 'Comfortaa';
+}
+TextArea,
+.icon-button,
+CheckBox,
+CheckBox .mark,
+CheckBox .box,
+CheckBox:selected,
+CheckBox:selected .mark,
+CheckBox:selected .box,
+ScrollPane,
+ScrollPane .viewport,
+ScrollPane .content,
+ScrollBar:horizontal,
+ScrollBar:vertical,
+.increment-button,
+.decrement-button,
+.increment-arrow,
+.decrement-arrow,
+ScrollPane>.corner,
+ComboBox .arrow,
+ComboBox .arrow-button {
+    -fx-background-color: transparent;
+}
+.scene-header {
+    -fx-font-weight: bold;
+    -fx-font-size: 20px;
+    -fx-text-fill: -fx-colors-text;
+}
+/*-- Скругление блоков и кнопок --*/
+.b-5 {
+    -fx-border-radius: 5px;
+}
+.b-10 {
+    -fx-border-radius: 10px;
+}
+.b-20 {
+    -fx-border-radius: 20px;
+}
+/*-- Управление прозрачностью --*/
+.transparent {
+    -fx-background-color: transparent;
+    -fx-background-size: cover;
+}
+/*-- Импорт фона --*/
+.background {
+    -fx-background-image: url('../images/background.png');
+    -fx-background-size: cover;
+}
+.scene-background {
+    -fx-background-color: -fx-colors-base;
+}
+.blur {
+    -fx-background-image: url('../images/background-blur.png') !important;
+    -fx-background-size: cover;
+}
+/* (тех. Кнопки) */
+.invisible {
+    -fx-opacity: 0;
+}
+.visible {
+    -fx-opacity: 1;
+}
+/*-- Иконки --*/
+.header-button {
+    -fx-fill: transparent;
+    -fx-stroke: -fx-header;
+    -fx-stroke-width: 1px;
+}
+.header-button-text {
+    -fx-font-size: 10px;
+    -fx-fill: -fx-header;
+    -fx-align-items: center;
+    -fx-font-weight: bold;
+}
+.header-button:hover,
+.icon-button:hover {
+    -fx-opacity: 0.6;
+}
+.icon-button {
+    -fx-background-position: center;
+    -fx-background-radius: 0;
+    -fx-padding: 4px;
+}
+.tooltip {
+    -fx-show-delay: 100ms;
+    -fx-font-size: 12px;
+}
+.tooltip>.tooltip {
+    -fx-background-color: -fx-colors-base;
+    -fx-text-fill: -fx-colors-text;
+    /* -fx-shape: "M24 1h-24v16.981h4v5.019l7-5.019h13z"; */
+}
+.tooltip>.tooltip>.text {
+    /* -fx-translate-y: -5px; */
+}
+.icon-button-color {
+    -fx-fill: -fx-header;
+}
+.icon-button-error {
+    -fx-fill: -fx-red;
+}
+/*-- Заголовки --*/
+#headingDialog,
+#headerDescription {
+    -fx-text-fill: -fx-colors-text;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+/*-- Блок вывода --*/
+#output-detail {
+    -fx-background-color: -fx-scene-card;
+    -fx-background-radius: 15px 15px 0px 0px;
+}
+/* Вывод лога */
+#output-detail>#output {
+    -fx-background-radius: 0;
+    -fx-padding: 10px;
+    -fx-font-size: 12px;
+    -fx-text-fill: -fx-colors-text;
+}
+#output-detail>#output .content,
+#output-detail>#output .content {
+    -fx-background-radius: 0;
+}
+/*-- Кнопка отправить --*/
+.send-button-text {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-text-align: center;
+    -fx-fill: -fx-header;
+}
+.send-button-text:hover,
+.send-button-text:pressed {
+    -fx-fill: -fx-header-hover;
+}
+/*-- Контекстное меню, применяется для кнопки смены языка --*/
+.context-menu {
+    -fx-background-color: -fx-colors-baseG;
+    -fx-background-insets: 0 0 -1 0, 0, 1, 2;
+    -fx-padding: 5px;
+    -fx-text-fill: -fx-colors-text;
+    -fx-background-radius: 5px;
+    -fx-translate-x: -30;
+    -fx-translate-y: 25;
+}
+.menu-item {
+    -fx-background-insets: 0 0 -1 0, 0, 1, 2;
+    -fx-background-radius: 5px;
+}
+.menu-item:hover,
+.menu-item:focused {
+    -fx-background-color: -fx-glass;
+}
+.menu-item>.graphic-container {
+    -fx-padding: 0em 0.333em 0em 0em;
+}
+.menu-item .label {
+    -fx-text-fill: -fx-colors-text;
+}
+.menu-item:focused .label {
+    -fx-text-fill: -fx-colors-text-hover;
+    -fx-font-weight: bold;
+}
+/* check-box элементы */
+CheckBox {
+    -fx-text-fill: -fx-colors-text;
+    -fx-background-image: url('../images/icons/checkbox1_off.png');
+    -fx-background-repeat: no-repeat;
+    -fx-label-padding: 0 0 0 10px;
+    -fx-font-size: 14px;
+    -fx-text-align: left;
+}
+CheckBox:selected {
+    -fx-background-image: url('../images/icons/checkbox1_on.png');
+    -fx-background-repeat: no-repeat;
+}
+/* Скролл панели */
+ScrollPane,
+ScrollPane .viewport {
+    -fx-padding: 0px;
+}
+ScrollBar {
+    -fx-font-size: 6px;
+}
+ScrollBar:horizontal {
+    /* -fx-translate-y: -10px; */
+    -fx-pref-height: 12;
+    -fx-padding: 0 250 0 250;
+}
+ScrollBar:vertical {
+    -fx-translate-x: 17px;
+    -fx-pref-width: 12;
+    -fx-padding: 100 0 100 0;
+}
+.increment-button,
+.decrement-button,
+.increment-arrow,
+.decrement-arrow {
+    -fx-border-color: transparent;
+}
+ScrollBar:horizontal .track,
+ScrollBar:vertical .track {
+    -fx-background-color: -fx-glass;
+    -fx-effect: -fx-effect-dropshadow;
+    /* -fx-background-color: transparent; */
+    -fx-border-color: transparent;
+    -fx-background-radius: 10;
+}
+ScrollBar:horizontal .thumb,
+ScrollBar:vertical .thumb {
+    -fx-background-color: -fx-colors-baseG;
+    /* -fx-background-color: -fx-colors-text-hover; */
+    -fx-background-radius: 10px;
+    -fx-background-insets: 1 1, 0, 0, 10;
+}
+/* combo-box элементы */
+ComboBox {
+    -fx-background-color: -fx-glass;
+    -fx-background-insets: 0 0 -1 0, 0, 1, 2;
+    -fx-background-radius: 10px;
+    -fx-padding: 5;
+    -fx-text-fill: -fx-colors-text;
+    -fx-alignment: CENTER;
+    -fx-content-display: LEFT;
+}
+ComboBox .arrow-button {
+    -fx-background-image: url('../images/icons/checkbox_arrow_button.png');
+    -fx-background-repeat: no-repeat;
+    -fx-background-position: center center;
+    -fx-background-size: 20px 11px;
+}
+ComboBox .list-cell {
+    -fx-text-fill: -fx-colors-text;
+    -fx-background-radius: 10px;
+}
+.combo-box-popup .list-view {
+    -fx-background-color: -fx-gray;
+    -fx-background-radius: 10px;
+    -fx-translate-y: 12;
+}
+.combo-box-popup .list-view .list-cell {
+    -fx-text-fill: -fx-colors-text;
+    -fx-padding: 5;
+    -fx-background-color: -fx-gray;
+}
+.combo-box-popup .list-view .list-cell:filled:selected,
+.combo-box-popup .list-view .list-cell:filled:selected:hover {
+    -fx-background-color: -fx-glass;
+    -fx-text-fill: -fx-colors-text-hover;
+    -fx-font-weight: bold;
+}
+.combo-box-popup .list-view .list-cell:filled:hover {
+    -fx-background-color: -fx-glass;
+    -fx-text-fill: -fx-colors-text-hover;
+}
+.combo-box-popup .list-cell {
+    -fx-background-color: -fx-colors-baseG;
+    -fx-text-fill: -fx-colors-text;
+}
+ComboBox .arrow {
+    -fx-background-color: transparent;
+}
+.anchor-block-information {
+    -fx-padding: 15px;
+    -fx-background-color: -fx-colors-baseGA;
+    -fx-background-radius: 15px;
+}
+Separator:horizontal .line,
+Separator:vertical .line {
+    -fx-background-color: -fx-colors-text-secondary;
+    -fx-border-color: transparent;
+    -fx-background-insets: 2;
+}

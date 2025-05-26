@@ -1,0 +1,55 @@
+/* RAM настройки */
+Slider>.track {
+    -fx-background-color: linear-gradient(to right, #8d4ce0, #8543e4, #7b39e9, #702eed, #6223f2);
+    -fx-pref-height: 5px;
+}
+Slider>.thumb {
+    -fx-background-color: -fx-violet;
+    -fx-pref-width: 18px;
+    -fx-pref-height: 18px;
+}
+Slider .axis {
+    -fx-tick-label-fill: -fx-colors-text;
+}
+
+#ramLabel {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-text-fill: -fx-colors-text;
+}
+.settings-header {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -fx-colors-text;
+}
+.settings-card {
+    -fx-spacing: 10;
+}
+.settings-container {
+    -fx-spacing: 10;
+}
+.settings-label-header {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -fx-colors-text;
+}
+.settings-label {
+    -fx-text-fill: -fx-colors-text;
+}
+#folder {
+    -fx-background-color: -fx-glass;
+    -fx-background-radius: 10px;
+}
+#path {
+    -fx-padding: 10px;
+}
+#settingslist {
+    -fx-padding: 15px;
+    -fx-background-color: -fx-colors-baseGA;
+    -fx-background-radius: 15px;
+}
+#changeDir {
+    -fx-background-color: -fx-colors-base;
+    -fx-background-radius: 0 10px 10px 0;
+    -fx-text-fill: -fx-colors-text;
+}

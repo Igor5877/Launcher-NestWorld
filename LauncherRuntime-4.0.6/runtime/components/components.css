@@ -1,0 +1,91 @@
+/*-- Уведомления --*/
+.notification {
+    -fx-padding: 10px;
+    -fx-background-color: -fx-colors-base;
+    -fx-background-radius: 10px 0px 0px 10px;
+    -fx-effect: -fx-effect-dropshadow;
+}
+.notification HBox VBox {
+    -fx-padding: 0px 10px 0px 10px;
+    -fx-spacing: 5;
+}
+#notificationHeading {
+    -fx-fill: -fx-colors-text;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+#notificationText {
+    -fx-text-fill: -fx-colors-text;
+    -fx-font-size: 10px;
+}
+/*-- Блок сервера --*/
+.serverButtons {
+    -fx-background-color: -fx-glass;
+    -fx-background-radius: 20px;
+}
+#serverButton {
+    -fx-background-radius: 20px;
+    -fx-cursor: hand;
+    -fx-background-color: -fx-glass;
+}
+#serverButton:hover {
+    -fx-background-color: -fx-violet-hover2;
+}
+#serverButtonSelected,
+#serverButtonPressed {
+    -fx-background-color: -fx-violet-hover2;
+}
+/*-- Информация о сервере --*/
+#nameServer {
+    -fx-text-fill: -fx-colors-text;
+    -fx-font-size: 20px;
+    -fx-wrap-text: false;
+    -fx-font-weight: bold;
+}
+#nameServer:hover {
+    -fx-text-fill: -fx-colors-text-hover;
+}
+#genreServer {
+    -fx-text-fill: -fx-colors-text;
+    -fx-font-size: 12px;
+}
+/*-- Индикатор онлайна --*/
+.online-green {
+    -fx-background-color: -fx-green;
+}
+.online-violet {
+    -fx-background-color: -fx-violet;
+}
+#online,
+#speedLoad {
+    -fx-background-radius: 5px;
+    -fx-text-fill: -fx-colors-base;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 8px;
+}
+/*-- Кнопка сохранить (для всех сцен) --*/
+#save {
+    -fx-font-weight: bold;
+    -fx-font-size: 18px;
+    -fx-text-align: center;
+    -fx-text-fill: -fx-colors-base;
+    -fx-background-color: -fx-violet;
+    -fx-background-radius: 10px;
+    -fx-padding: 8px;
+}
+#save:hover {
+    -fx-background-color: -fx-violet-hover;
+}
+#reset {
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-text-align: center;
+    -fx-text-fill: -fx-colors-base;
+    -fx-background-color: -fx-red;
+    -fx-background-radius: 5px;
+    -fx-padding: 8px;
+}
+#reset:hover {
+    -fx-background-color: -fx-red-hover;
+}

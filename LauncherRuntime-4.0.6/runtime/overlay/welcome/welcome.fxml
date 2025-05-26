@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<AnchorPane fx:id="overlay" prefHeight="560.0" prefWidth="930.0" styleClass="transparent" stylesheets="@welcome.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+
+    <AnchorPane id="header" prefHeight="80.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <!-- Кнопки управления -->
+        <HBox id="controls" spacing="10.0" AnchorPane.rightAnchor="29.0" AnchorPane.topAnchor="34.0">
+            <fx:include source="../../components/buttons/cancel.fxml" visible="false" />
+            <fx:include source="../../components/buttons/minimize.fxml" />
+            <fx:include source="../../components/buttons/exit.fxml" />
+        </HBox>
+    </AnchorPane>
+    <VBox alignment="CENTER" spacing="24.0" AnchorPane.bottomAnchor="50.0" AnchorPane.leftAnchor="30.0" AnchorPane.rightAnchor="30.0">
+        <children>
+            <ImageView id="playerHead" fitHeight="42.0" fitWidth="42.0" pickOnBounds="true" preserveRatio="true">
+                <Image url="@../../images/icons/default.png" />
+            </ImageView>
+            <VBox alignment="CENTER">
+                <children>
+                    <Label id="header-text" alignment="CENTER" text="%runtime.scenes.login.welcome" />
+                    <Label id="playerName" text="PLAYER123456" />
+                </children>
+            </VBox>
+        </children>
+    </VBox>
+    <HBox alignment="CENTER" maxHeight="256.0" AnchorPane.bottomAnchor="200.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="100.0">
+        <children>
+            <ImageView id="logo" pickOnBounds="true" preserveRatio="true">
+                <image>
+                    <Image url="@../../images/logo.png" />
+                </image>
+            </ImageView>
+        </children>
+    </HBox>
+</AnchorPane>

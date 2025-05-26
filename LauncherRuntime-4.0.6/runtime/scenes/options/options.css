@@ -1,0 +1,58 @@
+/* --START-- Чекбоксы, стили добавляются в коде */
+.optional-container {
+    -fx-background-color: transparent;
+    -fx-padding: 15 0 0 15px;
+    -fx-cursor: hand;
+}
+.optional-checkbox {
+    -fx-text-fill: -fx-colors-text;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+.optional-label {
+    -fx-text-fill: -fx-colors-text;
+    -fx-font-size: 12px;
+    -fx-label-padding: 0 20 0 30px;
+}
+.optional-library {
+    -fx-background-color: -fx-violetTr;
+    -fx-background-radius: 10px;
+    -fx-text-fill: -fx-colors-text;
+    -fx-padding: 2px 5px 2px 5px;
+}
+.optional-library-container {
+    -fx-spacing: 10;
+    -fx-padding: 0 20 0 30px;
+}
+/* --END-- */
+TabPane {
+    -fx-tab-min-height: 40px;
+    -fx-open-tab-animation: none;
+    -fx-close-tab-animation: none;
+}
+TabPane StackPane {
+    -fx-background-color: transparent;
+}
+TabPane .tab:selected {
+    -fx-background-color: transparent, -fx-violet;
+}
+TabPane .tab {
+    -fx-background-color: transparent, -fx-glass;
+    -fx-background-radius: 10px;
+    -fx-background-insets: 0 2.5 0 2.5;
+    -fx-padding: 0px 20px 0px 20px;
+}
+TabPane .tab Label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -fx-colors-text;
+}
+TabPane .tab:selected Label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -fx-colors-base;
+}
+
+TabPane:focused .tab {
+    -fx-focus-color: transparent;
+}

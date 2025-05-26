@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+
+<AnchorPane fx:id="serverPane" prefHeight="560.0" prefWidth="930.0" styleClass="background" stylesheets="@servermenu.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+    <!-- Навбар -->
+    <AnchorPane id="header" prefHeight="80.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <Pane id="userBlock" AnchorPane.leftAnchor="74.0" AnchorPane.topAnchor="34.0">
+            <fx:include source="../../components/userBlock.fxml" AnchorPane.leftAnchor="28.0" AnchorPane.topAnchor="34.0" />
+        </Pane>
+        <!-- Кнопки управления -->
+        <HBox id="controls" spacing="10.0" AnchorPane.rightAnchor="29.0" AnchorPane.topAnchor="34.0">
+            <fx:include source="../../components/buttons/deauth.fxml" />
+            <fx:include source="../../components/buttons/settings.fxml" />
+            <fx:include source="../../components/buttons/minimize.fxml" />
+            <fx:include source="../../components/buttons/exit.fxml" />
+        </HBox>
+    </AnchorPane>
+
+    <!-- Блок списка серверов -->
+    <ScrollPane id="servers" fitToWidth="true" vbarPolicy="NEVER" vmax="0.0" AnchorPane.bottomAnchor="34.0" AnchorPane.leftAnchor="85.0" AnchorPane.rightAnchor="65.0" AnchorPane.topAnchor="130.0">
+        <HBox alignment="CENTER" spacing="20.0">
+        </HBox>
+    </ScrollPane>
+</AnchorPane>

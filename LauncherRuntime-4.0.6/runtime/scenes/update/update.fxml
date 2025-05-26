@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<AnchorPane fx:id="layout" prefHeight="560.0" prefWidth="930.0" styleClass="background" stylesheets="@update.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+
+    <!-- Навбар -->
+    <AnchorPane id="header" prefHeight="80.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <Label styleClass="scene-header" text="%runtime.scenes.update.headingDialog" AnchorPane.leftAnchor="74.0" AnchorPane.topAnchor="34.0" />
+        <!-- Кнопки управления -->
+        <HBox id="controls" spacing="10.0" AnchorPane.rightAnchor="29.0" AnchorPane.topAnchor="34.0">
+            <fx:include source="../../components/buttons/cancel.fxml" />
+            <fx:include source="../../components/buttons/minimize.fxml" />
+            <fx:include source="../../components/buttons/exit.fxml" />
+        </HBox>
+    </AnchorPane>
+    <AnchorPane prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="52.0" AnchorPane.leftAnchor="51.0" AnchorPane.rightAnchor="51.0" AnchorPane.topAnchor="80.0">
+        <children>
+            <AnchorPane styleClass="anchor-block-information" AnchorPane.bottomAnchor="65.0" AnchorPane.leftAnchor="130.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                <children>
+
+                    <TextArea id="outputUpdate" editable="false" wrapText="true" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                </children>
+            </AnchorPane>
+
+            <!-- Прогрессбар-->
+            <ProgressBar id="progress" prefHeight="50.0" progress="0.3" AnchorPane.bottomAnchor="40.0" AnchorPane.leftAnchor="130.0" AnchorPane.rightAnchor="0.0" />
+            <StackPane id="update-detail" prefHeight="130.0" prefWidth="130.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0">
+                <children>
+      
+                    <!-- Информация-->
+                    <VBox id="speedOn" alignment="CENTER">
+                        <Label id="speed" alignment="CENTER" maxWidth="1.7976931348623157E308" text="214" textAlignment="CENTER">
+                            <VBox.margin>
+                                <Insets bottom="10.0" />
+                            </VBox.margin>
+                        </Label>
+                        <Label id="speed-text" alignment="CENTER" maxWidth="1.7976931348623157E308" text="MB/S" textAlignment="CENTER" />
+                        <Label id="volume" alignment="CENTER" contentDisplay="RIGHT" opacity="0.28" text="[240 MB]" />
+                    </VBox>
+                    <Label id="speedErr" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" styleClass="speedError" text="ERR" visible="false" />
+                </children>
+            </StackPane>
+        </children>
+    </AnchorPane>
+</AnchorPane>

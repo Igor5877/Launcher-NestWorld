@@ -1,0 +1,12 @@
+#customization {
+    -fx-background-color: -fx-colors-text;
+    -fx-background-radius: 4px;
+    -fx-opacity: 0;
+    -fx-effect: none;
+}
+#customization:hover {
+    -fx-opacity: 1;
+}
+#customization>.icons {
+    -fx-fill: -fx-colors-base;
+}

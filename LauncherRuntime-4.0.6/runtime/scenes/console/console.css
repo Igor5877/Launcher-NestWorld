@@ -1,0 +1,13 @@
+/*-- Ввод данных --*/
+TextField {
+    -fx-background-color: -fx-colors-baseG;
+    -fx-background-radius: 0 0 10 10;
+    -fx-font-size: 14px;
+    -fx-text-fill: -fx-header;
+    -fx-font-weight: bold;
+    -fx-cursor: text;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.1, 0.0, 0.0);
+}
+TextField:focused {
+    -fx-text-fill: -fx-colors-text;
+}

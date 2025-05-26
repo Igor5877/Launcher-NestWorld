@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<AnchorPane maxHeight="-Infinity" maxWidth="600.0" prefWidth="600.0" styleClass="dialog" stylesheets="@../../dialogs/dialogs.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+    <VBox spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <children>
+            <AnchorPane>
+                <children>
+                    <fx:include source="../../components/buttons/close.fxml" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                    <!-- Заголовок диалога-->
+                    <Label id="headingDialog" alignment="CENTER" contentDisplay="CENTER" prefHeight="32.0" text="%runtime.overlay.uploadasset.header" textAlignment="CENTER" AnchorPane.leftAnchor="42.0" AnchorPane.rightAnchor="42.0" AnchorPane.topAnchor="0.0" />
+                </children>
+            </AnchorPane>
+            <AnchorPane>
+                <children>
+                    <VBox spacing="20.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                        <children>
+                            <Label id="textDialog" alignment="CENTER" maxWidth="600.0" text="%runtime.overlay.uploadasset.textDialog" textAlignment="CENTER" wrapText="true">
+                                <VBox.margin>
+                                    <Insets />
+                                </VBox.margin>
+                            </Label>
+                            <HBox id="actions" alignment="CENTER" spacing="20.0">
+                                <children>
+                                    <Button id="uploadskin" alignment="CENTER" contentDisplay="CENTER" graphicTextGap="0.0" styleClass="dialog-button,dialog-apply-button" text="%runtime.overlay.uploadasset.uploadskin" />
+                                    <Separator orientation="VERTICAL" />
+                                    <Button id="uploadcape" alignment="CENTER" contentDisplay="CENTER" graphicTextGap="0.0" styleClass="dialog-button,dialog-apply-button" text="%runtime.overlay.uploadasset.uploadcape" />
+                                </children>
+                                <VBox.margin>
+                                    <Insets />
+                                </VBox.margin>
+                            </HBox>
+                            <HBox alignment="TOP_RIGHT" spacing="10.0">
+                                <children>
+                                    <CheckBox id="useslim" text="%runtime.overlay.uploadasset.useslim" visible="false" />
+                                </children>
+                        <VBox.margin>
+                           <Insets right="289.0" />
+                        </VBox.margin>
+                        <opaqueInsets>
+                           <Insets />
+                        </opaqueInsets>
+                            </HBox>
+                        </children>
+                    </VBox>
+                </children>
+            </AnchorPane>
+        </children>
+    </VBox>
+</AnchorPane>
