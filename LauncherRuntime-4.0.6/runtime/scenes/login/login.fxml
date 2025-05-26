@@ -4,6 +4,7 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
@@ -15,7 +16,7 @@
 <?import javafx.scene.shape.Rectangle?>
 <?import javafx.scene.text.Text?>
 
-<AnchorPane id="layout" fx:id="loginPane" prefHeight="560.0" prefWidth="930.0" styleClass="background" stylesheets="@login.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="pro.gravit.launcher.gui.scenes.login.LoginScene">
+<AnchorPane id="layout" fx:id="loginPane" prefHeight="560.0" prefWidth="930.0" styleClass="background" stylesheets="@login.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
 
     <!-- Вертикальная полоса -->
     <AnchorPane id="loginLeftPane" prefWidth="380.0" styleClass="vline" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
@@ -72,9 +73,9 @@
     </AnchorPane>
     <VBox alignment="CENTER_LEFT" fillWidth="false" layoutX="330.0" layoutY="100.0" pickOnBounds="false" spacing="10.0" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="412.0" AnchorPane.rightAnchor="5.0" AnchorPane.topAnchor="5.0">
         <children>
-            <ScrollPane fx:id="newsScrollPane" fitToWidth="true" prefHeight="200.0" styleClass="news-scroll-pane">
+            <ScrollPane fx:id="newsScrollPane" fitToWidth="true" prefHeight="313.0" prefWidth="312.0" styleClass="news-scroll-pane">
                 <content>
-                    <VBox fx:id="newsVBox" spacing="5.0" styleClass="news-vbox">
+                    <VBox fx:id="newsVBox" prefHeight="71.0" prefWidth="310.0" spacing="5.0" styleClass="news-vbox">
                         <!-- News items will be added here by the controller -->
                     </VBox>
                 </content>

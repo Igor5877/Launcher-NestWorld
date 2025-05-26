@@ -146,6 +146,18 @@ Rectangle {
     -fx-font-size: 11px;      /* Slightly smaller font for news items */
 }
 
+.news-item-box {
+    -fx-padding: 5px; /* Padding around each image-text pair */
+    /* -fx-border-color: -fx-colors-text-secondary; /* Optional: for debugging or subtle separation */
+    /* -fx-border-width: 0.5px; */
+    /* -fx-background-color: -fx-glass-lighter; /* Optional: subtle background for each item */
+}
+
+/* Optional: Reaffirm text fill for consistency within news items */
+.news-item-box .text {
+    -fx-fill: -fx-colors-text; /* Reaffirm or define if not covered by .news-vbox .text */
+}
+
 /* Optional: Hover effect if news items become clickable links */
 /*
 .news-vbox .text:hover {
