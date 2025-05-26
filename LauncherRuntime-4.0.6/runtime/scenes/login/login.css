@@ -127,3 +127,46 @@ Rectangle {
     -fx-background-color: -fx-red-hover;
 }
 /* --END-- */
+
+/* -- News Feed Styles -- */
+.news-scroll-pane {
+    -fx-background-color: transparent; /* Consistent with other panes */
+    /* -fx-border-color: -fx-colors-text-secondary; */ /* Optional: for a subtle separation */
+    /* -fx-border-width: 1px; */
+    /* -fx-border-radius: 5px; */ /* Optional: if other elements use rounded borders */
+}
+
+.news-vbox {
+    -fx-padding: 10px; /* Padding around the content */
+    -fx-spacing: 8px;  /* Spacing between individual news items */
+}
+
+.news-vbox .text {
+    -fx-fill: -fx-colors-text; /* Ensures text color matches the theme */
+    -fx-font-size: 11px;      /* Slightly smaller font for news items */
+}
+
+/* Optional: Hover effect if news items become clickable links */
+/*
+.news-vbox .text:hover {
+    -fx-fill: -fx-green-hover;
+    -fx-underline: true;
+    -fx-cursor: hand;
+}
+*/
+
+/* Optional: Consistent Scrollbar styling */
+/*
+.news-scroll-pane .scroll-bar:vertical .track {
+    -fx-background-color: -fx-glass-light; / * Or other subtle background from theme */
+    /* -fx-border-color: transparent; */
+    /* -fx-background-radius: 2.0em; */
+    /* -fx-border-radius: 2.0em; */
+/* } */
+
+/*
+.news-scroll-pane .scroll-bar:vertical .thumb {
+    -fx-background-color: -fx-colors-text-secondary; / * Thumb color from theme */
+    /* -fx-background-insets: 2.0, 0.0, 0.0; */
+    /* -fx-background-radius: 2.0em; */
+/* } */

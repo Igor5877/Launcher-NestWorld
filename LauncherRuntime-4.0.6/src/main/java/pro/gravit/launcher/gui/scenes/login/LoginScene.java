@@ -2,7 +2,9 @@ package pro.gravit.launcher.gui.scenes.login;
 
 import javafx.application.Platform;
 import javafx.scene.control.*;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.util.StringConverter;
 import pro.gravit.launcher.client.events.ClientExitPhase;
@@ -26,11 +28,26 @@ import pro.gravit.launcher.base.request.update.LauncherRequest;
 import pro.gravit.launcher.base.request.update.ProfilesRequest;
 import pro.gravit.utils.helper.LogHelper;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
-import java.util.*;
+import java.net.URL;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+
 
 public class LoginScene extends AbstractScene {
+    @FXML
+    private ScrollPane newsScrollPane;
+
+    @FXML
+    private VBox newsVBox;
     private List<GetAvailabilityAuthRequestEvent.AuthAvailability> auth; //TODO: FIX? Field is assigned but never accessed.
     private CheckBox savePasswordCheckBox;
     private CheckBox autoenter;
@@ -93,6 +110,59 @@ public class LoginScene extends AbstractScene {
         } else {
             getAvailabilityAuth();
         }
+        loadNewsFeed(); // Add this line
+    }
+
+    private void loadNewsFeed() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                URL url = new URL("https://nestworld.site/api/atom"); // Or https://nestworld.site/api/rss as fallback
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(5000); // 5 seconds
+                connection.setReadTimeout(5000);    // 5 seconds
+
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    InputStream inputStream = connection.getInputStream();
+                    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                    DocumentBuilder builder = factory.newDocumentBuilder();
+                    Document doc = builder.parse(inputStream);
+                    inputStream.close();
+
+                    doc.getDocumentElement().normalize();
+                    NodeList entryList = doc.getElementsByTagName("entry"); // Atom specific, use "item" for RSS
+
+                    Platform.runLater(() -> newsVBox.getChildren().clear()); // Clear old news
+
+                    for (int i = 0; i < Math.min(entryList.getLength(), 10); i++) { // Limit to 10 news items
+                        Element entry = (Element) entryList.item(i);
+                        String title = entry.getElementsByTagName("title").item(0).getTextContent();
+                        // You could also extract link:
+                        // String link = entry.getElementsByTagName("link").item(0).getAttributes().getNamedItem("href").getTextContent();
+                        
+                        Text newsText = new Text(title);
+                        newsText.setStyle("-fx-fill: -fx-colors-text;"); // Basic styling, can be improved in CSS
+                        // If you want to make it clickable (opens link in browser):
+                        // newsText.setOnMouseClicked(event -> {
+                        //     if (link != null && !link.isEmpty()) {
+                        //         application.openURL(link);
+                        //     }
+                        // });
+                        // newsText.setCursor(javafx.scene.Cursor.HAND);
+
+
+                        Platform.runLater(() -> newsVBox.getChildren().add(newsText));
+                    }
+                } else {
+                    LogHelper.warning("Failed to fetch news: HTTP " + responseCode);
+                    Platform.runLater(() -> newsVBox.getChildren().add(new Text("Failed to load news.")));
+                }
+            } catch (Exception e) {
+                LogHelper.error("Error loading news feed: " + e.getMessage(), e);
+                Platform.runLater(() -> newsVBox.getChildren().add(new Text("Error loading news.")));
+            }
+        });
     }
 
     private void launcherRequest() {
