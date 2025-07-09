@@ -94,6 +94,7 @@ public class WebSocketService {
         providers.register("getAssetUploadUrl", GetAssetUploadInfoResponse.class);
         providers.register("assetUploadInfo", AssetUploadInfoResponse.class);
         providers.register("getConnectUUID", GetConnectUUIDResponse.class);
+        providers.register("crashReport", CrashReportResponse.class);
     }
 
     public static String getIPFromContext(ChannelHandlerContext ctx) {
