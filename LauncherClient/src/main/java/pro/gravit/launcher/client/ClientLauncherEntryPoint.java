@@ -211,6 +211,15 @@ public class ClientLauncherEntryPoint {
             if (javaWatcher != null)
                 verifyHDir(javaDir, params.javaHDir, null, false, true);
             modulesManager.invokeEvent(new ClientProcessLaunchEvent(params));
+            
+            // Ініціалізуємо CrashReportManager
+            try {
+                CrashReportManager.initialize(clientDir);
+                LogHelper.info("CrashReportManager initialized");
+            } catch (Exception e) {
+                LogHelper.error("Failed to initialize CrashReportManager", e);
+            }
+            
             launch(profile, params);
         }
     }
