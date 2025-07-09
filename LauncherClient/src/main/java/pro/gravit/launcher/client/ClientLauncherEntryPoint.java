@@ -333,6 +333,13 @@ public class ClientLauncherEntryPoint {
             LogHelper.error(e);
             throw e;
         } finally {
+            // Закриваємо CrashReportManager
+            try {
+                CrashReportManager.shutdown();
+                LogHelper.info("CrashReportManager shutdown");
+            } catch (Exception e) {
+                LogHelper.error("Error shutting down CrashReportManager", e);
+            }
             ClientLauncherMethods.exitLauncher(0);
         }
 
