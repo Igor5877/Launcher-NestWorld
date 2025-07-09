@@ -20,6 +20,7 @@ import pro.gravit.launchserver.socket.response.WebSocketServerResponse;
 import pro.gravit.launchserver.socket.response.auth.*;
 import pro.gravit.launchserver.socket.response.cabinet.AssetUploadInfoResponse;
 import pro.gravit.launchserver.socket.response.cabinet.GetAssetUploadInfoResponse;
+import pro.gravit.launchserver.socket.response.CrashReportResponse;
 import pro.gravit.launchserver.socket.response.management.FeaturesResponse;
 import pro.gravit.launchserver.socket.response.management.GetConnectUUIDResponse;
 import pro.gravit.launchserver.socket.response.management.GetPublicKeyResponse;
