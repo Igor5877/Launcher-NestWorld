@@ -14,6 +14,7 @@ public abstract class Component {
             providers.register("commandRemover", CommandRemoverComponent.class);
             providers.register("proguard", ProGuardComponent.class);
             providers.register("whitelist", WhitelistComponent.class);
+            providers.register("crashReports", CrashReportComponent.class);
             registredComp = true;
         }
     }
