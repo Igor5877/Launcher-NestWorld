@@ -1,0 +1,85 @@
+<analysis>
+The AI engineer systematically analyzed a Java-based Minecraft launcher (GravitLauncher) codebase. It started by exploring the existing client-server architecture, identifying key components like , , and their request/response mechanisms. The primary task was to implement crash report functionality, including server-side storage, configurable parameters, and authentication.
+
+The engineer proposed an initial plan, gathered user feedback regarding crash report format, triggers, size, and authentication, and then refined the plan to incorporate these details, specifically focusing on runtime configuration via system properties or a JSON configuration file. The user approved the Component approach for configuration.
+
+Subsequently, the engineer proceeded with implementation, creating new Java classes for , , and a  component. It also began integrating the new  into the . The work demonstrates a clear understanding of the existing codebase and a methodical approach to adding new features while adhering to security and configurability requirements.
+</analysis>
+
+<product_requirements>
+The user requires a crash reporting system for a Minecraft launcher, consisting of a server-side component and a client. The client should send crash reports to the server, which then stores them in a structured directory: . The server's IP and port for crash report reception must be configurable at build/runtime, not hardcoded. The crash reports should be standard Minecraft/Forge crash reports (e.g., stack trace, system info). Reports should be triggered automatically upon client crash, with preparation for future manual submission via an interface. A default maximum file size of 20MB, configurable, is required. Crucially, strong authentication is mandatory to prevent server spam and ensure only authorized users submit reports. The chosen configuration method is through a dedicated Component section within the  file.
+</product_requirements>
+
+<key_technical_concepts>
+- **GravitLauncher**: The core application, a client-server Minecraft launcher.
+- **Java**: Primary programming language for both server and client.
+- **Netty**: Network application framework used by  for communication.
+- **Request/Response Architecture**: Pattern for client-server interaction within the launcher.
+- **Component-based Configuration**: System for managing server features and their settings via JSON.
+- **Runtime Configuration**: Parameters configurable at server startup (e.g., via ).
+- **File I/O**: Server-side logic for creating directories and saving files.
+- **Authentication (OAuth)**: Existing system to be leveraged for secure crash report submission.
+</key_technical_concepts>
+
+<code_architecture>
+The application structure is based on a client-server model, primarily written in Java.
+
+
+
+**Key Files and Changes:**
+
+-   :
+    -   **Importance**: Defines the server's overall configuration.
+    -   **Changes Made**: A new nested static class  was added. This class holds configuration parameters for the crash report system, such as , , , , , , , , and . An instance of  () was added as a field to .
+-   :
+    -   **Importance**: Defines the data structure for client-sent crash report requests.
+    -   **Changes Made**: A new class was created. It extends  and contains fields for  (the actual crash report string), , and  for authentication.
+-   :
+    -   **Importance**: Server-side logic to handle incoming s.
+    -   **Changes Made**: A new class was created. It extends  response, likely includes logic for authenticating the user, validating file size, creating the target directory, and saving the crash report content to the specified path ().
+-   :
+    -   **Importance**: Integrates the crash report functionality as a modular component within the server.
+    -   **Changes Made**: A new class was created. It extends  and manages the lifecycle and configuration of the crash report feature, including its  state, , and  settings. It likely registers the  handler.
+-   :
+    -   **Importance**: Manages WebSocket connections and registers request handlers.
+    -   **Changes Made**:  was added to register the new crash report handling.
+-   :
+    -   **Importance**: Main server application class, responsible for initializing components.
+    -   **Changes Made**:  was added to initialize the crash report component.
+-   :
+    -   **Importance**: Handles client-side collection and sending of crash reports.
+    -   **Changes Made**: A new class was created. It contains methods to detect crash files, read their content, and send them to the server using the .
+-   :
+    -   **Importance**: Main client application class.
+    -   **Changes Made**: Imports for  were added. Integration points for calling  (e.g.,  and ) were added, likely within initialization and error handling blocks.
+
+</code_architecture>
+
+<pending_tasks>
+- Complete the implementation of  on the client-side to automatically detect and send crash reports.
+- Implement the manual sending mechanism for logs and crashes via an interface (currently only preparing the server-side).
+- Implement rate limiting for crash reports on the server.
+- Add optional cleanup logic for old crash reports on the server.
+</pending_tasks>
+
+<current_work>
+The previous AI engineer has laid a solid foundation for the crash reporting system. The core data structures and server-side component integration are in place.
+
+Specifically:
+1.  **Server-side (LaunchServer)**:
+    *   A  static inner class has been defined within  to manage all crash report related settings (enabled, host, port, max file size, storage path, rate limit, authentication requirement, cleanup, max reports per user). An instance of this config is now part of the main .
+    *   A new  has been created in  to define the client's request structure, including , , and .
+    *   A  has been created in  to handle the incoming requests, which will include validation, directory creation, and file saving logic.
+    *   A  has been created to manage the crash report feature as a server component, likely handling its initialization and lifecycle.
+    *   The  is registered with its  handler in  to enable server processing.
+    *   The  is registered in  for proper server initialization.
+2.  **Client-side (LauncherClient)**:
+    *   A new  file has been created, intended to encapsulate the logic for collecting and sending crash reports from the client.
+    *   Initial integration points have been added to , including imports for  and calls to  and  within the client's main lifecycle, indicating that the client is now prepared to interact with the crash report system.
+
+The current state is that the necessary Java classes and configuration structures are mostly in place, and the framework for communication has been established. The actual logic for reading crash files, performing server-side validation and file saving, and triggering automatic crash report sending needs further implementation within these new classes.
+</current_work>
+
+<optional_next_step>
+Implement the core logic within  and  to handle file reading, sending, receiving, and saving of crash reports.
+</optional_next_step>
