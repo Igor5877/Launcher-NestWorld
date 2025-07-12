@@ -123,13 +123,32 @@ public abstract class ClientWebSocketService extends ClientJSONPoint {
     public void sendObject(Object obj) throws IOException {
         waitIfNotConnected();
         if (webSocket == null || webSocket.isInputClosed()) reconnectCallback.onReconnect();
-        send(gson.toJson(obj, WebSocketRequest.class));
+        sendObject(obj, WebSocketRequest.class);
     }
 
     public void sendObject(Object obj, Type type) throws IOException {
         waitIfNotConnected();
-        if (webSocket == null || webSocket.isInputClosed()) reconnectCallback.onReconnect();
-        send(gson.toJson(obj, type));
+        if (webSocket == null || webSocket.isInputClosed()) {
+            if(reconnectCallback != null) {
+                reconnectCallback.onReconnect();
+            } else {
+                throw new IOException("WebSocket closed");
+            }
+        }
+        String text = gson.toJson(obj, type);
+        if(text.length() < 32768)
+        {
+            send(text);
+            return;
+        }
+        int partSize = 32768;
+        int parts = (int) Math.ceil((double) text.length() / partSize);
+        for(int i = 0; i < parts; ++i)
+        {
+            int start = i * partSize;
+            int end = Math.min(text.length(), (i+1)*partSize);
+            send(text.subSequence(start, end), i+1 >= parts);
+        }
     }
 
     @FunctionalInterface

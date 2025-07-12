@@ -28,6 +28,8 @@ tasks.register('javadocJar', Jar) {
 
 dependencies {
     implementation project(':LauncherAPI')
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.24.1'
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.24.1'
 }
 
 publishing {

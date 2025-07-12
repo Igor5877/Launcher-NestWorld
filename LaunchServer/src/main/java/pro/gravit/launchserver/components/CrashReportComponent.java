@@ -130,7 +130,7 @@ public class CrashReportComponent extends Component implements AutoCloseable {
         if (!enabled) return false;
         
         if (requireAuth && !client.isAuth) {
-            logger.warn("Unauthenticated client attempted to send crash report from IP: {}", client.ip);
+            logger.warn("Unauthenticated client attempted to send crash report");
             return false;
         }
         
