@@ -125,7 +125,7 @@ public class CrashReportManager {
         String gameVersion = extractGameVersion(content);
         String forgeVersion = extractForgeVersion(content);
         
-        CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion, false, true);
+        CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion);
         
         try {
             CrashReportRequestEvent event = request.request();
@@ -183,7 +183,7 @@ public class CrashReportManager {
                 String gameVersion = extractGameVersion(content);
                 String forgeVersion = extractForgeVersion(content);
                 
-                CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion, false, true);
+                CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion);
                 return request.request();
                 
             } catch (Exception e) {

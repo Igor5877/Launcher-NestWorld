@@ -103,15 +103,9 @@ public abstract class ClientJSONPoint implements WebSocket.Listener {
         WebSocket.Listener.super.onError(webSocket, error);
     }
 
-    public void send(CharSequence text, boolean last) {
-        synchronized (sendSyncObject) {
-            LogHelper.dev("Send %s", text);
-            webSocket.sendText(text, last);
-        }
-    }
-
     public void send(String text) {
-        send(text, true);
+        LogHelper.dev("Send %s", text);
+        webSocket.sendText(text, true);
     }
 
     abstract void onMessage(String message);
