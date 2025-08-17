@@ -127,7 +127,7 @@ public class CrashReportResponse extends SimpleResponse {
         // Додаємо метаінформацію
         enriched.append("// Crash report submitted via GravitLauncher\n");
         enriched.append("// Submitted by: ").append(client.username).append("\n");
-        enriched.append("// Client IP: ").append(client.ip).append("\n");
+        enriched.append("// Client IP: ").append(client.ipAddress).append("\n");
         enriched.append("// Submission time: ").append(LocalDateTime.now()).append("\n");
         enriched.append("// Launcher version: ").append(server.config.projectName).append("\n");
         enriched.append("\n");

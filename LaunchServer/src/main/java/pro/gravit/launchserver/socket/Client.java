@@ -25,6 +25,7 @@ public class Client {
     public ClientPermissions permissions;
     public String username;
     public UUID uuid;
+    public String ipAddress;
     public TrustLevel trustLevel;
 
     public transient AuthProviderPair auth;

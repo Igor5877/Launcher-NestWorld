@@ -50,6 +50,11 @@ public class WebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocket
     public void channelActive(ChannelHandlerContext ctx) {
         logger.trace("New client {}", IOHelper.getIP(ctx.channel().remoteAddress()));
         client = new Client();
+         if (context != null && context.ip != null) {
+            client.ipAddress = context.ip;
+        } else {
+            client.ipAddress = IOHelper.getIP(ctx.channel().remoteAddress());
+        }
         Channel ch = ctx.channel();
         service.registerClient(ch);
         future = ctx.executor().scheduleAtFixedRate(() -> ch.writeAndFlush(new PingWebSocketFrame(), ch.voidPromise()), 30L, 30L, TimeUnit.SECONDS);

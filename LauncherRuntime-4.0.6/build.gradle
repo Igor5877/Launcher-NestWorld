@@ -37,7 +37,7 @@ jar {
             "Module-Config-Class": "pro.gravit.launcher.gui.config.GuiModuleConfig",
             "Module-Config-Name": "JavaRuntime",
             "Required-Modern-Java": "true")
-    jar.archiveFileName = "JavaRuntime_lmodule.jar"
+    jar.archiveFileName = "JavaRuntime_lmodule-0.0.1.jar"
 }
 
 task runDev(type: JavaExec) {

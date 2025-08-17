@@ -5,8 +5,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.Pane;
+import javafx.scene.image.Image;
+import javafx.scene.layout.*;
 import pro.gravit.launcher.gui.JavaFXApplication;
+import pro.gravit.launcher.gui.utils.JavaFxUtils;
+
+import java.net.URL;
 import pro.gravit.launcher.gui.components.UserBlock;
 import pro.gravit.launcher.gui.helper.LookupHelper;
 import pro.gravit.launcher.gui.scenes.AbstractScene;
@@ -16,7 +20,8 @@ import pro.gravit.launcher.base.profiles.ClientProfile;
 import pro.gravit.utils.helper.*;
 
 public class ServerInfoScene extends AbstractScene implements SceneSupportUserBlock {
-    private ServerButton serverButton;
+    private static final String SERVER_BUTTON_DEFAULT_IMAGE = "images/servers/example.png";
+    private static final String SERVER_BUTTON_CUSTOM_IMAGE = "images/servers/%s.png";
     private UserBlock userBlock;
 
     public ServerInfoScene(JavaFXApplication application) {
@@ -28,7 +33,7 @@ public class ServerInfoScene extends AbstractScene implements SceneSupportUserBl
         this.userBlock = new UserBlock(layout, new SceneAccessor());
         LookupHelper.<Button>lookup(layout, "#back").setOnAction((e) -> {
             try {
-                switchToBackScene();
+                switchScene(application.gui.serverMenuScene);
             } catch (Exception exception) {
                 errorHandle(exception);
             }
@@ -62,12 +67,20 @@ public class ServerInfoScene extends AbstractScene implements SceneSupportUserBl
             var label = (Label) e.getContent();
             label.setText(profile.getInfo());
         });
-        Pane serverButtonContainer = LookupHelper.lookup(layout, "#serverButton");
-        serverButtonContainer.getChildren().clear();
-        serverButton = ServerButton.createServerButton(application, profile);
-        serverButton.addTo(serverButtonContainer);
-        serverButton.enableSaveButton(application.getTranslation("runtime.scenes.serverinfo.serverButton.game"),
-                                      (e) -> runClient());
+        LookupHelper.<Button>lookupIfPossible(layout, "#save").ifPresent(
+                (e) -> e.setOnAction((event) -> runClient()));
+        LookupHelper.lookupIfPossible(layout, "#serverLogo").ifPresent(node -> {
+            Region serverLogo = (Region) node;
+            URL logo = application.tryResource(String.format(SERVER_BUTTON_CUSTOM_IMAGE, profile.getUUID().toString()));
+            if (logo == null) {
+                logo = application.tryResource(SERVER_BUTTON_DEFAULT_IMAGE);
+            }
+            if (logo != null) {
+                serverLogo.setBackground(new Background(new BackgroundImage(new Image(logo.toString()),
+                        BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT,
+                        BackgroundPosition.CENTER, new BackgroundSize(0.0, 0.0, true, true, false, true))));
+            }
+        });
         this.userBlock.reset();
     }
 

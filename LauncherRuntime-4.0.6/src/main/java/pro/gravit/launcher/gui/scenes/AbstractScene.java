@@ -16,6 +16,7 @@ import pro.gravit.launcher.gui.overlays.AbstractOverlay;
 import pro.gravit.launcher.base.request.Request;
 import pro.gravit.launcher.base.request.WebSocketEvent;
 import pro.gravit.launcher.base.request.auth.ExitRequest;
+import javafx.scene.control.Button;
 
 import java.util.function.Consumer;
 
@@ -70,13 +71,17 @@ public abstract class AbstractScene extends AbstractVisualComponent {
     }
 
     protected void sceneBaseInit() {
-        initBasicControls(header);
-        LookupHelper.<ButtonBase>lookupIfPossible(header, "#controls", "#deauth").ifPresent(b -> b.setOnAction(
+    initBasicControls(header);
+    // Спочатку шукаємо саму панель #leftpanel. Вона є не на всіх сценах.
+    LookupHelper.<Pane>lookupIfPossible(layout, "#leftpanel").ifPresent(leftpanel -> {
+        // Якщо панель знайдено, вже всередині неї шукаємо кнопку #deauth
+        LookupHelper.<Button>lookupIfPossible(leftpanel, "#deauth").ifPresent(b -> b.setOnAction(
                 (e) -> application.messageManager.showApplyDialog(
                         application.getTranslation("runtime.scenes.settings.exitDialog.header"),
                         application.getTranslation("runtime.scenes.settings.exitDialog.description"),
                         this::userExit, () -> {}, true)));
-    }
+    });
+}
 
     protected void userExit() {
         processRequest(application.getTranslation("runtime.scenes.settings.exitDialog.processing"), new ExitRequest(),

@@ -5,19 +5,9 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 
-<AnchorPane id="leftpanel" prefWidth="300.0" stylesheets="@leftpanel.css" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane id="leftpanel" prefWidth="300.0" stylesheets="@leftpanel.css" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
   <children>
-      <AnchorPane maxHeight="-Infinity" prefHeight="80.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-         <children>
-          <fx:include source="../buttons/back.fxml" AnchorPane.leftAnchor="28.0" AnchorPane.topAnchor="34.0" />
-          <Pane id="userBlock" AnchorPane.leftAnchor="74.0" AnchorPane.topAnchor="34.0">
-            <children>
-              <fx:include source="../userBlock.fxml" AnchorPane.leftAnchor="28.0" AnchorPane.topAnchor="34.0" />
-            </children>
-          </Pane>
-         </children>
-      </AnchorPane>
-      <FlowPane alignment="CENTER" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="80.0">
+      <FlowPane alignment="CENTER" AnchorPane.bottomAnchor="80.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
           <HBox alignment="CENTER">
             <children>
@@ -27,5 +17,15 @@
           </HBox>
          </children>
       </FlowPane>
+      <AnchorPane maxHeight="-Infinity" prefHeight="80.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+         <children>
+            <fx:include source="../buttons/deauth.fxml" AnchorPane.leftAnchor="26.0" AnchorPane.topAnchor="34.0" />
+          <Pane id="userBlock" AnchorPane.leftAnchor="74.0" AnchorPane.topAnchor="34.0">
+            <children>
+              <fx:include source="../userBlock.fxml" AnchorPane.leftAnchor="28.0" AnchorPane.topAnchor="34.0" />
+            </children>
+          </Pane>
+         </children>
+      </AnchorPane>
   </children>
 </AnchorPane>

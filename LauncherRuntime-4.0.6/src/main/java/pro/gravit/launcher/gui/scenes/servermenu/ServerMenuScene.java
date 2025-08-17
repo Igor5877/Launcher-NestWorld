@@ -2,10 +2,11 @@ package pro.gravit.launcher.gui.scenes.servermenu;
 
 import javafx.event.EventHandler;
 import javafx.scene.control.ButtonBase;
+
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import pro.gravit.launcher.gui.JavaFXApplication;
 import pro.gravit.launcher.gui.components.ServerButton;
 import pro.gravit.launcher.gui.components.UserBlock;
@@ -37,12 +38,8 @@ public class ServerMenuScene extends AbstractScene implements SceneSupportUserBl
                 errorHandle(exception);
             }
         });
+
         ScrollPane scrollPane = LookupHelper.lookup(layout, "#servers");
-        scrollPane.setOnScroll(e -> {
-            double widthContent = scrollPane.getWidth();
-            double offset = (widthContent * 0.15) / (scrollPane.getContent().getBoundsInLocal().getWidth() - widthContent) * Math.signum(e.getDeltaY());
-            scrollPane.setHvalue(scrollPane.getHvalue() - offset);
-        });
         reset();
         isResetOnShow = true;
     }
@@ -69,7 +66,7 @@ public class ServerMenuScene extends AbstractScene implements SceneSupportUserBl
             position++;
         }
         ScrollPane scrollPane = LookupHelper.lookup(layout, "#servers");
-        HBox serverList = (HBox) scrollPane.getContent();
+        VBox serverList = (VBox) scrollPane.getContent();
         serverList.setSpacing(20);
         serverList.getChildren().clear();
         application.pingService.clear();

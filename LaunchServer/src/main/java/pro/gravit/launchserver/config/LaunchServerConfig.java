@@ -90,6 +90,7 @@ public final class LaunchServerConfig {
         newConfig.components.put("authLimiter", authLimiterComponent);
         ProGuardComponent proGuardComponent = new ProGuardComponent();
         newConfig.components.put("proguard", proGuardComponent);
+         newConfig.components.put("crashReport", new pro.gravit.launchserver.components.CrashReportComponent());
         newConfig.profileProvider = new LocalProfileProvider();
         return newConfig;
     }
@@ -281,7 +282,7 @@ public final class LaunchServerConfig {
         public int bossThread;
         public int workerThread;
         public int schedulerThread;
-        public int maxWebSocketRequestBytes = 1024 * 1024;
+        public int maxWebSocketRequestBytes = 10 * 1024 * 1024;
         public boolean disableThreadSafeClientObject;
         public NettyExecutorType executorType = NettyExecutorType.VIRTUAL_THREADS;
 
