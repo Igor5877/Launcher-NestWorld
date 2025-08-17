@@ -16,7 +16,6 @@ import pro.gravit.launcher.base.profiles.ClientProfile;
 import pro.gravit.utils.helper.*;
 
 public class ServerInfoScene extends AbstractScene implements SceneSupportUserBlock {
-    private ServerButton serverButton;
     private UserBlock userBlock;
 
     public ServerInfoScene(JavaFXApplication application) {
@@ -62,12 +61,8 @@ public class ServerInfoScene extends AbstractScene implements SceneSupportUserBl
             var label = (Label) e.getContent();
             label.setText(profile.getInfo());
         });
-        Pane serverButtonContainer = LookupHelper.lookup(layout, "#serverButton");
-        serverButtonContainer.getChildren().clear();
-        serverButton = ServerButton.createServerButton(application, profile);
-        serverButton.addTo(serverButtonContainer);
-        serverButton.enableSaveButton(application.getTranslation("runtime.scenes.serverinfo.serverButton.game"),
-                                      (e) -> runClient());
+        LookupHelper.<Button>lookupIfPossible(layout, "#save").ifPresent(
+                (e) -> e.setOnAction((event) -> runClient()));
         this.userBlock.reset();
     }
 
