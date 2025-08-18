@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.shape.SVGPath?>
+
+<!-- Кнопка настроек опциональных модов -->
+<Button id="save" prefHeight="40.0" prefWidth="145.0" styleClass="save-button" text="Грати">
+    <graphic>
+        <SVGPath content="M 12 2 C 6.477 2 2 6.477 2 12 c 0 5.523 4.477 10 10 10 s 10 -4.477 10 -10 C 22 6.477 17.523 2 12 2 Z M 10 15.5 v -7 c 0 -0.412 0.47 -0.647 0.8 -0.4 l 4.667 3.5 c 0.267 0.2 0.267 0.6 0 0.8 L 10.8 15.9 C 10.47 16.147 10 15.912 10 15.5 Z" scaleX="0.8" scaleY="0.8" />
+    </graphic>
+</Button>

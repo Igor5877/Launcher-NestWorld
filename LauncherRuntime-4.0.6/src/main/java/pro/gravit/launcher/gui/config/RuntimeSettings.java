@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public class RuntimeSettings extends UserSettings {
-    public static final LAUNCHER_LOCALE DEFAULT_LOCALE = LAUNCHER_LOCALE.RUSSIAN;
+    public static final LAUNCHER_LOCALE DEFAULT_LOCALE = LAUNCHER_LOCALE.UKRAINIAN;
     public transient Path updatesDir;
     @LauncherNetworkAPI
     public String login;
@@ -53,7 +53,7 @@ public class RuntimeSettings extends UserSettings {
         runtimeSettings.autoAuth = false;
         runtimeSettings.updatesDir = DirBridge.defaultUpdatesDir;
         runtimeSettings.locale = config.locale == null
-                ? LAUNCHER_LOCALE.RUSSIAN
+                ? LAUNCHER_LOCALE.UKRAINIAN
                 : LAUNCHER_LOCALE.valueOf(config.locale);
         try {
             runtimeSettings.theme = SystemTheme.getSystemTheme();
@@ -68,7 +68,7 @@ public class RuntimeSettings extends UserSettings {
     }
 
     public enum LAUNCHER_LOCALE {
-        @LauncherNetworkAPI RUSSIAN("ru", "Русский"),
+        //@LauncherNetworkAPI RUSSIAN("ru", "Русский"),
         @LauncherNetworkAPI BELARUSIAN("be", "Беларуская"),
         @LauncherNetworkAPI UKRAINIAN("uk", "Українська"),
         @LauncherNetworkAPI POLISH("pl", "Polska"),
@@ -84,7 +84,8 @@ public class RuntimeSettings extends UserSettings {
 
     public enum LAUNCHER_THEME {
         @LauncherNetworkAPI COMMON(null, "default"),
-        @LauncherNetworkAPI DARK("dark", "dark");
+        @LauncherNetworkAPI DARK("dark", "dark"),
+        @LauncherNetworkAPI OLD("old", "old");
         public final String name;
         public final String displayName;
 

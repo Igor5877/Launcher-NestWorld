@@ -26,13 +26,12 @@ public class OptionsScene extends AbstractScene implements SceneSupportUserBlock
     }
 
     @Override
-    public void reset() {
-        Pane serverButtonContainer = LookupHelper.lookup(layout, "#serverButton");
-        serverButtonContainer.getChildren().clear();
-        ClientProfile profile = application.profilesService.getProfile();
-        ServerButton serverButton = ServerButton.createServerButton(application, profile);
-        serverButton.addTo(serverButtonContainer);
-        serverButton.enableSaveButton(null, (e) -> {
+public void reset() {
+    ClientProfile profile = application.profilesService.getProfile(); // Повертаємо визначення profile
+    
+    // Логіка для кнопки "Зберегти"
+    LookupHelper.<Button>lookupIfPossible(layout, "#savepanel", "#save").ifPresent(saveButton -> {
+        saveButton.setOnAction(e -> {
             try {
                 application.profilesService.setOptionalView(profile, optionsTab.getOptionalView());
                 switchScene(application.gui.serverInfoScene);
@@ -40,22 +39,28 @@ public class OptionsScene extends AbstractScene implements SceneSupportUserBlock
                 errorHandle(exception);
             }
         });
-        serverButton.enableResetButton(null, (e) -> {
+    });
+
+    // Логіка для кнопки "Скинути" (яка у вас #clientSettings)
+    LookupHelper.<ButtonBase>lookupIfPossible(layout, "#savepanel", "#clientSettings").ifPresent(resetButton -> {
+        resetButton.setOnAction(e -> {
             optionsTab.clear();
             application.profilesService.setOptionalView(profile, new OptionalView(profile));
             optionsTab.addProfileOptionals(application.profilesService.getOptionalView());
         });
-        optionsTab.clear();
-        LookupHelper.<Button>lookupIfPossible(layout, "#back").ifPresent(x -> x.setOnAction((e) -> {
-            try {
-                switchToBackScene();
-            } catch (Exception exception) {
-                errorHandle(exception);
-            }
-        }));
-        optionsTab.addProfileOptionals(application.profilesService.getOptionalView());
-        userBlock.reset();
-    }
+    });
+
+    optionsTab.clear();
+    LookupHelper.<Button>lookupIfPossible(layout, "#back").ifPresent(x -> x.setOnAction((e) -> {
+        try {
+            switchToBackScene();
+        } catch (Exception exception) {
+            errorHandle(exception);
+        }
+    }));
+    optionsTab.addProfileOptionals(application.profilesService.getOptionalView());
+    userBlock.reset();
+}
 
     @Override
     public String getName() {

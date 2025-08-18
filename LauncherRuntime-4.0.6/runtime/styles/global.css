@@ -111,6 +111,56 @@ ComboBox .arrow-button {
     -fx-background-radius: 0;
     -fx-padding: 4px;
 }
+
+.mods-button {
+    -fx-background-position: center;
+    -fx-border-radius: 13px;
+    -fx-border-color: rgba(255, 255, 255, 1);
+    -fx-background-radius: 13px;
+    -fx-background-color: rgba(255, 255, 255, 0);
+    -fx-text-fill: rgba(255, 255, 255, 1);
+}
+
+.mods-button SVGPath {
+    -fx-border-color: rgba(255, 255, 255, 0);
+    -fx-text-fill: rgba(255, 255, 255, 0.5);
+    -fx-fill: rgba(255, 255, 255, 1);
+}
+
+.mods-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 1);
+    -fx-text-fill: rgba(0, 0, 0, 1);
+}
+
+.mods-button:hover SVGPath {
+    -fx-fill: rgba(0, 0, 0, 1);
+}
+
+.mods-button:pressed {
+    -fx-border-color: rgba(255, 255, 255, 0);
+    -fx-background-color: rgba(255, 255, 255, 0.7);
+    -fx-fill: rgba(0, 0, 0, 1);
+}
+
+.save-button {
+    -fx-background-radius: 13px;
+    -fx-background-color: rgba(255, 255, 255, 1);
+    -fx-text-fill: rgba(0, 0, 0, 1);
+}
+
+.save-button SVGPath {
+    -fx-text-fill: rgba(255, 255, 255, 0.5);
+    -fx-fill: rgba(0, 0, 0, 1);
+}
+
+.save-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.7);
+}
+
+.save-button:pressed {
+    -fx-background-color: rgba(255, 255, 255, 0.5);
+}
+
 .tooltip {
     -fx-show-delay: 100ms;
     -fx-font-size: 12px;

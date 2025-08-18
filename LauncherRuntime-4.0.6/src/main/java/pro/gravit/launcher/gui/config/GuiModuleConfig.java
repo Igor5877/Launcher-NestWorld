@@ -40,8 +40,8 @@ public class GuiModuleConfig {
         config.lazy = false;
         config.javaList = new HashMap<>();
         config.disableOfflineMode = false;
-        config.autoAuth = false;
-        config.locale = "RUSSIAN";
+        config.autoAuth = true;
+        config.locale = "UKRAINIAN";
         config.downloadThreads = 4;
         return config;
     }

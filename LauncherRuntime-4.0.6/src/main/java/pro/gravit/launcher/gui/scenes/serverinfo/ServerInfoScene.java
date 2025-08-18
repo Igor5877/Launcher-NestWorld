@@ -31,7 +31,8 @@ public class ServerInfoScene extends AbstractScene implements SceneSupportUserBl
     @Override
     protected void doInit() {
         this.userBlock = new UserBlock(layout, new SceneAccessor());
-        LookupHelper.<Button>lookup(layout, "#back").setOnAction((e) -> {
+        // Back button is now in the header
+        LookupHelper.<ButtonBase>lookup(header, "#controls", "#back").setOnAction((e) -> {
             try {
                 switchScene(application.gui.serverMenuScene);
             } catch (Exception exception) {
@@ -39,15 +40,7 @@ public class ServerInfoScene extends AbstractScene implements SceneSupportUserBl
             }
         });
 
-        LookupHelper.<ButtonBase>lookup(header, "#controls", "#clientSettings").setOnAction((e) -> {
-            try {
-                if (application.profilesService.getProfile() == null) return;
-                switchScene(application.gui.optionsScene);
-                application.gui.optionsScene.reset();
-            } catch (Exception ex) {
-                errorHandle(ex);
-            }
-        });
+        // Settings and other buttons in the header
         LookupHelper.<ButtonBase>lookup(header, "#controls", "#settings").setOnAction((e) -> {
             try {
                 switchScene(application.gui.settingsScene);
@@ -67,8 +60,20 @@ public class ServerInfoScene extends AbstractScene implements SceneSupportUserBl
             var label = (Label) e.getContent();
             label.setText(profile.getInfo());
         });
-        LookupHelper.<Button>lookupIfPossible(layout, "#save").ifPresent(
+
+        // Buttons are now in savepanel, which is in the main layout
+        LookupHelper.<ButtonBase>lookupIfPossible(layout, "#savepanel", "#clientSettings").ifPresent(b -> b.setOnAction((e) -> {
+            try {
+                if (application.profilesService.getProfile() == null) return;
+                switchScene(application.gui.optionsScene);
+                application.gui.optionsScene.reset();
+            } catch (Exception ex) {
+                errorHandle(ex);
+            }
+        }));
+        LookupHelper.<Button>lookupIfPossible(layout, "#savepanel", "#save").ifPresent(
                 (e) -> e.setOnAction((event) -> runClient()));
+        
         LookupHelper.lookupIfPossible(layout, "#serverLogo").ifPresent(node -> {
             Region serverLogo = (Region) node;
             URL logo = application.tryResource(String.format(SERVER_BUTTON_CUSTOM_IMAGE, profile.getUUID().toString()));

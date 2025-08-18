@@ -9,6 +9,7 @@ import pro.gravit.launcher.gui.components.UserBlock;
 import pro.gravit.launcher.gui.config.RuntimeSettings;
 import pro.gravit.launcher.gui.helper.LookupHelper;
 import pro.gravit.launcher.gui.components.ServerButton;
+import pro.gravit.launcher.gui.scenes.AbstractScene.SceneAccessor;
 import pro.gravit.launcher.gui.scenes.interfaces.SceneSupportUserBlock;
 import pro.gravit.launcher.gui.scenes.settings.components.JavaSelectorComponent;
 import pro.gravit.launcher.gui.utils.SystemMemory;
@@ -99,21 +100,40 @@ public class SettingsScene extends BaseSettingsScene implements SceneSupportUser
             updateRamLabel();
         });
         updateRamLabel();
-        Pane serverButtonContainer = LookupHelper.lookup(layout, "#serverButton");
-        serverButtonContainer.getChildren().clear();
-        ClientProfile profile = application.profilesService.getProfile();
-        ServerButton serverButton = ServerButton.createServerButton(application, profile);
-        serverButton.addTo(serverButtonContainer);
-        serverButton.enableSaveButton(null, (e) -> {
+        // Pane serverButtonContainer = LookupHelper.lookup(layout, "#serverButton");
+        // serverButtonContainer.getChildren().clear();
+        // ClientProfile profile = application.profilesService.getProfile();
+        // ServerButton serverButton = ServerButton.createServerButton(application, profile);
+        // serverButton.addTo(serverButtonContainer);
+        // serverButton.enableSaveButton(null, (e) -> {
+        //     try {
+        //         profileSettings.apply();
+        //         application.triggerManager.process(profile, application.profilesService.getOptionalView());
+        //         switchToBackScene();
+        //     } catch (Exception exception) {
+        //         errorHandle(exception);
+        //     }
+        // });
+        // serverButton.enableResetButton(null, (e) -> reset());
+         // Виправляємо логіку для кнопок з savepanel
+    LookupHelper.<Button>lookupIfPossible(layout, "#savepanel", "#save").ifPresent(saveButton -> {
+        saveButton.setOnAction(e -> {
             try {
                 profileSettings.apply();
+                ClientProfile profile = application.profilesService.getProfile();
                 application.triggerManager.process(profile, application.profilesService.getOptionalView());
                 switchToBackScene();
             } catch (Exception exception) {
                 errorHandle(exception);
             }
         });
-        serverButton.enableResetButton(null, (e) -> reset());
+    });
+
+    // Я припускаю, що ви хотіли, щоб кнопка "Налаштування клієнта" скидала налаштування.
+    // Якщо її роль інша, дайте знати.
+    LookupHelper.<ButtonBase>lookupIfPossible(layout, "#savepanel", "#clientSettings").ifPresent(settingsButton -> {
+        settingsButton.setOnAction(e -> reset());
+    });
         add("Debug", application.runtimeSettings.globalSettings.debugAllClients || profileSettings.debug, (value) -> profileSettings.debug = value, application.runtimeSettings.globalSettings.debugAllClients);
         add("AutoEnter", profileSettings.autoEnter, (value) -> profileSettings.autoEnter = value, false);
         add("Fullscreen", profileSettings.fullScreen, (value) -> profileSettings.fullScreen = value, false);

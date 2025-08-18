@@ -5,9 +5,9 @@
 <?import javafx.scene.shape.SVGPath?>
 
 <!-- Кнопка настроек опциональных модов -->
-<Button id="clientSettings" styleClass="icon-button">
+<Button id="clientSettings" prefHeight="40.0" prefWidth="145.0" styleClass="mods-button" text="Моди">
     <graphic>
-        <SVGPath content="m 10.5332,10 h 4.2 v 2.25 h 8.4 v 1.5 h -8.4 V 16 h -4.2 V 13.75 H 9.13324 v -1.5 h 1.39996 z m 1.4,1.5 v 3 h 1.4 v -3 z m 5.6,4.5 h 4.2 v 2.25 h 1.4 v 1.5 h -1.4 V 22 h -4.2 V 19.75 H 9.13324 v -1.5 h 8.39996 z m 1.4,1.5 v 3 h 1.4 v -3 z M 6.85714,4 C 5.28599,4 4,5.28599 4,6.85714 V 25.1429 C 4,26.714 5.28599,28 6.85714,28 H 25.1429 C 26.714,28 28,26.714 28,25.1429 V 6.85714 C 28,5.28599 26.714,4 25.1429,4 Z m 0,1.14286 H 25.1429 c 0.9534,0 1.7142,0.76086 1.7142,1.71428 V 25.1429 c 0,0.9534 -0.7608,1.7142 -1.7142,1.7142 H 6.85714 c -0.95342,0 -1.71428,-0.7608 -1.71428,-1.7142 V 6.85714 c 0,-0.95342 0.76086,-1.71428 1.71428,-1.71428 z" styleClass="icon-button-color" />
+        <SVGPath content="M 15 3 C 8.373 3 3 8.373 3 15 c 0 6.627 5.373 12 12 12 s 12 -5.373 12 -12 C 27 8.373 21.627 3 15 3 Z M 21 16 h -5 v 5 c 0 0.553 -0.448 1 -1 1 s -1 -0.447 -1 -1 v -5 H 9 c -0.552 0 -1 -0.447 -1 -1 s 0.448 -1 1 -1 h 5 V 9 c 0 -0.553 0.448 -1 1 -1 s 1 0.447 1 1 v 5 h 5 c 0.552 0 1 0.447 1 1 S 21.552 16 21 16 Z" scaleX="0.65" scaleY="0.65" />
     </graphic>
     <tooltip>
         <Tooltip anchorLocation="WINDOW_BOTTOM_LEFT" text="%runtime.scenes.serverinfo.clientSettingsTooltip" />

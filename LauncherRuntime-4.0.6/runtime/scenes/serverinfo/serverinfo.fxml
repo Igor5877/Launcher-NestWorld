@@ -15,11 +15,10 @@
                 <Label id="serverName" maxWidth="400.0" prefHeight="32.0" styleClass="scene-header" text="ServerName" AnchorPane.leftAnchor="35.0" AnchorPane.topAnchor="34.0" />
                 <!-- Кнопки управления -->
                 <HBox id="controls" spacing="10.0" AnchorPane.rightAnchor="29.0" AnchorPane.topAnchor="34.0">
-               <fx:include source="../../components/buttons/back.fxml" />
-                    <fx:include source="../../components/buttons/clientSettings.fxml" />
-                    <fx:include source="../../components/buttons/exit.fxml" />
+                    <fx:include source="../../components/buttons/back.fxml" />
                     <fx:include source="../../components/buttons/settings.fxml" />
                     <fx:include source="../../components/buttons/minimize.fxml" />
+                    <fx:include source="../../components/buttons/exit.fxml" />
                 </HBox>
             </children>
         </AnchorPane>
@@ -28,12 +27,12 @@
     <AnchorPane prefHeight="480.0" prefWidth="630.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="300.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="80.0">
         <children>
             <Region id="serverLogo" layoutY="19.0" prefHeight="386.0" prefWidth="167.0" AnchorPane.bottomAnchor="75.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="463.0" AnchorPane.topAnchor="19.0" />
-            <ScrollPane id="serverDescriptionPane" fitToWidth="true" hbarPolicy="NEVER" pannable="true" AnchorPane.bottomAnchor="20.0" AnchorPane.leftAnchor="20.0" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="0.0">
+            <ScrollPane id="serverDescriptionPane" fitToWidth="true" hbarPolicy="NEVER" layoutX="266.4" pannable="true" prefHeight="404.0" prefWidth="344.0" AnchorPane.bottomAnchor="76.0" AnchorPane.leftAnchor="266.0" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="0.0">
                 <content>
                     <Label alignment="TOP_LEFT" maxWidth="1.7976931348623157E308" prefWidth="149.0" text="Server description" wrapText="true" />
                 </content>
             </ScrollPane>
-            <Button id="save" prefHeight="55.0" text="%runtime.scenes.serverinfo.serverButton.game" AnchorPane.bottomAnchor="20.0" AnchorPane.rightAnchor="20.0" />
+              <fx:include source="../../components/panels/savepanel.fxml" AnchorPane.leftAnchor="308.0" AnchorPane.topAnchor="420.0" />
         </children>
     </AnchorPane>
 </AnchorPane>
