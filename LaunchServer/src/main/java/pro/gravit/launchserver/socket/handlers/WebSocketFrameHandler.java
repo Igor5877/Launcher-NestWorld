@@ -23,6 +23,7 @@ public class WebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocket
     public final WebSocketService service;
     public final BiHookSet<ChannelHandlerContext, WebSocketFrame> hooks = new BiHookSet<>();
     private final UUID connectUUID = UUID.randomUUID();
+    private final StringBuilder textBuffer = new StringBuilder();
     private transient final Logger logger = LogManager.getLogger();
     public NettyConnectContext context;
     private Client client;
@@ -68,36 +69,41 @@ public class WebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocket
         } catch (Throwable ex) {
             logger.error("WebSocket frame handler hook error", ex);
         }
-        switch (frame) {
-            case TextWebSocketFrame textWebSocketFrame -> {
+        if (frame instanceof TextWebSocketFrame || frame instanceof ContinuationWebSocketFrame) {
+            if (frame instanceof TextWebSocketFrame) {
+                textBuffer.append(((TextWebSocketFrame) frame).text());
+            } else { // ContinuationWebSocketFrame
+                textBuffer.append(((ContinuationWebSocketFrame) frame).text());
+            }
+
+            if (frame.isFinalFragment()) {
+                String fullMessage = textBuffer.toString();
+                textBuffer.setLength(0); // Clear buffer
+
                 if (logger.isTraceEnabled()) {
-                    logger.trace("Message from {}: {}", context.ip == null ? IOHelper.getIP(ctx.channel().remoteAddress()) : context.ip, textWebSocketFrame.text());
+                    logger.trace("Message from {}: {}", context.ip == null ? IOHelper.getIP(ctx.channel().remoteAddress()) : context.ip, fullMessage);
                 }
                 try {
-                    service.process(ctx, textWebSocketFrame, client, context.ip, connectUUID);
+                    service.process(ctx, new TextWebSocketFrame(fullMessage), client, context.ip, connectUUID);
                 } catch (Throwable ex) {
                     logger.warn("Client {} send invalid request. Connection force closed.", context.ip == null ? IOHelper.getIP(ctx.channel().remoteAddress()) : context.ip);
                     if (logger.isTraceEnabled()) {
-                        logger.trace("Client message: {}", textWebSocketFrame.text());
+                        logger.trace("Client message: {}", fullMessage);
                         logger.error("Process websockets request failed", ex);
                     }
                     ctx.channel().close();
                 }
             }
-            case PingWebSocketFrame pingWebSocketFrame -> {
-                frame.content().retain();
-                ctx.channel().writeAndFlush(new PongWebSocketFrame(frame.content()));
-                //return;
-            }
-            case PongWebSocketFrame pongWebSocketFrame -> logger.trace("WebSocket Client received pong");
-            case CloseWebSocketFrame closeWebSocketFrame -> {
-                int statusCode = closeWebSocketFrame.statusCode();
-                ctx.channel().close();
-            }
-            case null, default -> {
-                String message = "unsupported frame type: " + frame.getClass().getName();
-                logger.error(new UnsupportedOperationException(message)); // prevent strange crash here.
-            }
+        } else if (frame instanceof PingWebSocketFrame) {
+            frame.content().retain();
+            ctx.channel().writeAndFlush(new PongWebSocketFrame(frame.content()));
+        } else if (frame instanceof PongWebSocketFrame) {
+            logger.trace("WebSocket Client received pong");
+        } else if (frame instanceof CloseWebSocketFrame) {
+            ctx.channel().close();
+        } else {
+            String message = "unsupported frame type: " + frame.getClass().getName();
+            logger.error(new UnsupportedOperationException(message));
         }
     }
 

@@ -70,8 +70,9 @@ public class CrashReportResponse extends SimpleResponse {
         }
         
         try {
+            String clientName = client.profile == null ? "unknown" : client.profile.getTitle();
             // Створюємо директорію користувача
-            Path userDir = crashComponent.getUserCrashDir(username);
+            Path userDir = crashComponent.getUserCrashDir(clientName, username);
             
             // Генеруємо ім'я файлу
             String generatedFilename = generateFilename(filename);

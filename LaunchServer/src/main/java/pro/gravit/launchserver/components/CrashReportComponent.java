@@ -118,8 +118,11 @@ public class CrashReportComponent extends Component implements AutoCloseable {
                content.contains("at net.minecraftforge");
     }
     
-    public Path getUserCrashDir(String username) throws IOException {
-        Path userDir = crashDir.resolve(username);
+    public Path getUserCrashDir(String clientName, String username) throws IOException {
+        String safeClientName = clientName.replaceAll("[^a-zA-Z0-9.-_]", "_");
+        String safeUsername = username.replaceAll("[^a-zA-Z0-9.-_]", "_");
+        Path clientDir = crashDir.resolve(safeClientName);
+        Path userDir = clientDir.resolve(safeUsername);
         if (!Files.exists(userDir)) {
             Files.createDirectories(userDir);
         }

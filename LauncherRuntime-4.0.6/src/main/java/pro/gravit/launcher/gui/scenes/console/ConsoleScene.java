@@ -11,7 +11,7 @@ import pro.gravit.launcher.runtime.managers.ConsoleManager;
 import pro.gravit.utils.helper.LogHelper;
 
 public class ConsoleScene extends AbstractScene {
-    private static final long MAX_LENGTH = 16384;
+    private static final long MAX_LENGTH = 36174;
     private static final int REMOVE_LENGTH = 1024;
     private TextField commandLine;
     private TextArea output;

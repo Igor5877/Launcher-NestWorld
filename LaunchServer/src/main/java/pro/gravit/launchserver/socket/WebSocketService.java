@@ -125,7 +125,7 @@ public class WebSocketService {
 
     public void process(ChannelHandlerContext ctx, TextWebSocketFrame frame, Client client, String ip, UUID connectUUID) {
         String request = frame.text();
-        logger.info("Received request: {}", request);
+        // logger.debug("Received request: {}", request);
         WebSocketRequestContext context = new WebSocketRequestContext(ctx, request, client, ip, connectUUID);
         if(hookBeforeParsing.hook(context)) {
             return;
