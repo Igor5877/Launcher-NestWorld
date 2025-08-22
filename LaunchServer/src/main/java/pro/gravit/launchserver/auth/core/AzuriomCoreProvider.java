@@ -2,22 +2,25 @@ package pro.gravit.launchserver.auth.core;
 
 import com.azuriom.azauth.AuthClient;
 import com.azuriom.azauth.exception.AuthException;
+import pro.gravit.launcher.base.events.request.GetAvailabilityAuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
+import pro.gravit.launcher.base.request.auth.details.AuthPasswordDetails;
+import pro.gravit.launcher.base.request.auth.details.AuthTotpDetails;
+import pro.gravit.launcher.base.request.auth.password.Auth2FAPassword;
+import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
+import pro.gravit.launcher.base.request.auth.password.AuthTOTPPassword;
 import pro.gravit.launchserver.LaunchServer;
 import pro.gravit.launchserver.auth.AuthProviderPair;
 import pro.gravit.launchserver.manangers.AuthManager;
 import pro.gravit.launchserver.socket.Client;
 import pro.gravit.launcher.base.ClientPermissions;
-import pro.gravit.launcher.base.request.auth.password.Auth2FAPassword;
-import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
-import pro.gravit.launcher.base.request.auth.password.AuthTOTPPassword;
 import pro.gravit.launchserver.socket.response.auth.AuthResponse;
-
-import java.io.IOException;
-import java.util.UUID;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
 
 public class AzuriomCoreProvider extends AuthCoreProvider {
     private transient final Logger logger = LogManager.getLogger();
@@ -51,7 +54,26 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
 
     @Override
     public UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired {
-        throw new UnsupportedOperationException("Azuriom provider does not support OAuth access tokens");
+        if (authClient == null) {
+            // Provider not configured, cannot verify
+            return null;
+        }
+        try {
+            com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
+            AzuriomUser user = new AzuriomUser(azuriomUser);
+            return new AzuriomUserSession(user, azuriomUser.getAccessToken());
+        } catch (AuthException e) {
+            // The azauth library throws a generic AuthException for various issues (e.g., invalid token, network error).
+            // We'll check if the message suggests an invalid/expired token. This is a best-effort guess.
+            // A more robust solution would require the azauth library to use more specific exception types.
+            String message = e.getMessage();
+            if (message != null && (message.contains("Invalid token") || message.contains("expired"))) {
+                throw new OAuthAccessTokenExpired();
+            }
+            // For any other error during verification, we treat it as a failure and return null.
+            logger.warn("Azuriom token verification failed: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Override
@@ -98,8 +120,11 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
 
             com.azuriom.azauth.model.User azuriomUser = result.getSuccessResult();
             AzuriomUser user = new AzuriomUser(azuriomUser);
-            AzuriomUserSession session = new AzuriomUserSession(user, azuriomUser.getAccessToken());
-            return AuthManager.AuthReport.ofMinecraftAccessToken(session.getMinecraftAccessToken(), session);
+            String accessToken = azuriomUser.getAccessToken();
+            AzuriomUserSession session = new AzuriomUserSession(user, accessToken);
+            // We use the same token for both because Azuriom doesn't distinguish them
+            // and the system requires an OAuth token to be present.
+            return AuthManager.AuthReport.ofOAuthWithMinecraft(accessToken, accessToken, null, 0, session);
 
         } catch (AuthException e) {
             throw new pro.gravit.launchserver.auth.AuthException(e.getMessage(), e);
@@ -114,6 +139,11 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
     @Override
     public User checkServer(Client client, String username, String serverID) throws IOException {
         throw new UnsupportedOperationException("Azuriom provider does not support checkServer");
+    }
+    
+    @Override
+    public List<GetAvailabilityAuthRequestEvent.AuthAvailabilityDetails> getDetails(Client client) {
+        return List.of(new AuthPasswordDetails(), new AuthTotpDetails("SHA1"));
     }
 
     @Override
