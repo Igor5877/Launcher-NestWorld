@@ -52,6 +52,7 @@ public abstract class AuthCoreProvider implements AutoCloseable, Reconfigurable 
             providers.register("reject", RejectAuthCoreProvider.class);
             providers.register("mysql", MySQLCoreProvider.class);
             providers.register("postgresql", PostgresSQLCoreProvider.class);
+            providers.register("azuriom", AzuriomCoreProvider.class);
             providers.register("memory", MemoryAuthCoreProvider.class);
             providers.register("merge", MergeAuthCoreProvider.class);
             providers.register("openid", OpenIDAuthCoreProvider.class);
