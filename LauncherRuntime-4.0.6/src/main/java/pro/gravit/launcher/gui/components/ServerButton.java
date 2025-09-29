@@ -93,7 +93,10 @@ public class ServerButton extends AbstractVisualComponent {
     }
 
     public void setOnMouseClicked(EventHandler<? super MouseEvent> eventHandler) {
-        layout.setOnMouseClicked(eventHandler);
+        // Remove the click handler from the main layout to prevent the whole component from being clickable
+        layout.setOnMouseClicked(null);
+        // Add the click handler to the save button only
+        saveButton.setOnMouseClicked(eventHandler);
     }
 
     public void enableSaveButton(String text, EventHandler<ActionEvent> eventHandler) {

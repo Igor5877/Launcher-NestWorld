@@ -11,68 +11,88 @@ import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthTOTPPassword;
 import pro.gravit.launchserver.LaunchServer;
 import pro.gravit.launchserver.auth.AuthProviderPair;
+import pro.gravit.launchserver.auth.core.interfaces.UserHardware;
+import pro.gravit.launchserver.helper.LegacySessionHelper;
 import pro.gravit.launchserver.manangers.AuthManager;
 import pro.gravit.launchserver.socket.Client;
-import pro.gravit.launcher.base.ClientPermissions;
 import pro.gravit.launchserver.socket.response.auth.AuthResponse;
+import pro.gravit.utils.helper.SecurityHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class AzuriomCoreProvider extends AuthCoreProvider {
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
+    public SQLCoreProvider sql;
     private transient AuthClient authClient;
 
     @Override
     public void init(LaunchServer server, AuthProviderPair pair) {
         super.init(server, pair);
         if (azuriomUrl == null || azuriomUrl.isEmpty()) {
-            logger.error("azuriomUrl is not configured for auth provider '{}'", pair.name);
+            logger.error("azuriomUrl is not configured");
+            return;
+        }
+        if (sql == null) {
+            logger.error("sql provider is not configured inside AzuriomCoreProvider");
             return;
         }
         this.authClient = new AuthClient(azuriomUrl);
+        sql.init(server, pair);
     }
 
     @Override
     public User getUserByUsername(String username) {
-        throw new UnsupportedOperationException("Azuriom provider does not support fetching user by username directly");
+        return sql.getUserByUsername(username);
     }
 
     @Override
     public User getUserByUUID(UUID uuid) {
-        throw new UnsupportedOperationException("Azuriom provider does not support fetching user by UUID directly");
+        return sql.getUserByUUID(uuid);
     }
 
     @Override
     public User getUserByLogin(String login) {
-        throw new UnsupportedOperationException("Azuriom provider does not support fetching user by login directly");
+        return sql.getUserByLogin(login);
     }
 
     @Override
     public UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired {
         if (authClient == null) {
-            // Provider not configured, cannot verify
+            logger.error("Azuriom provider is not configured");
             return null;
         }
         try {
+            // This method is only for verifying an existing token. If it fails, we don't try to refresh,
+            // we just fail, which will force the user to log in with their password.
             com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
-            AzuriomUser user = new AzuriomUser(azuriomUser);
-            return new AzuriomUserSession(user, azuriomUser.getAccessToken());
-        } catch (AuthException e) {
-            // The azauth library throws a generic AuthException for various issues (e.g., invalid token, network error).
-            // We'll check if the message suggests an invalid/expired token. This is a best-effort guess.
-            // A more robust solution would require the azauth library to use more specific exception types.
-            String message = e.getMessage();
-            if (message != null && (message.contains("Invalid token") || message.contains("expired"))) {
-                throw new OAuthAccessTokenExpired();
+            AbstractSQLCoreProvider.SQLUser localUser = (AbstractSQLCoreProvider.SQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+
+            if (localUser == null) {
+                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.", azuriomUser.getUsername(), azuriomUser.getUuid());
+                return null;
             }
-            // For any other error during verification, we treat it as a failure and return null.
-            logger.warn("Azuriom token verification failed: {}", e.getMessage());
-            return null;
+
+            enrichUserWithAzuriomData(localUser, azuriomUser);
+            checkHwidBan(localUser);
+
+            return sql.createSession(localUser);
+        } catch (AuthException e) {
+            // Any exception during verification means the token is invalid.
+            // We throw OAuthAccessTokenExpired to signal the client to clear the token and re-authenticate.
+            throw new OAuthAccessTokenExpired();
+        } catch (pro.gravit.launchserver.auth.AuthException e) {
+            // This could be a HWID ban or another local issue.
+            logger.error("Local user check failed during token verification", e);
+            throw new OAuthAccessTokenExpired(); // Also force re-authentication
         }
     }
 
@@ -100,47 +120,80 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
         }
 
         try {
-            // First, try to login without 2FA code.
             com.azuriom.azauth.AuthResult<com.azuriom.azauth.model.User> result = authClient.login(login, plainPassword);
 
-            // If 2FA is required
             if (result.isPending() && result.asPending().require2fa()) {
                 if (totpCode == null) {
-                    // 2FA is required, but client did not provide a code.
                     throw pro.gravit.launchserver.auth.AuthException.need2FA();
                 }
-                // 2FA is required and client provided a code, try again with the code.
                 result = authClient.login(login, plainPassword, totpCode);
             }
 
             if (!result.isSuccess()) {
-                 // Handle other errors like wrong password
                 throw new pro.gravit.launchserver.auth.AuthException("Authentication failed: " + result.toString());
             }
 
             com.azuriom.azauth.model.User azuriomUser = result.getSuccessResult();
-            AzuriomUser user = new AzuriomUser(azuriomUser);
-            String accessToken = azuriomUser.getAccessToken();
-            AzuriomUserSession session = new AzuriomUserSession(user, accessToken);
-            // We use the same token for both because Azuriom doesn't distinguish them
-            // and the system requires an OAuth token to be present.
-            return AuthManager.AuthReport.ofOAuthWithMinecraft(accessToken, accessToken, null, 0, session);
+            AbstractSQLCoreProvider.SQLUser localUser = (AbstractSQLCoreProvider.SQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+
+            if (localUser == null) {
+                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.", azuriomUser.getUsername(), azuriomUser.getUuid());
+                throw new pro.gravit.launchserver.auth.AuthException("User not found in local database");
+            }
+
+            enrichUserWithAzuriomData(localUser, azuriomUser);
+            checkHwidBan(localUser);
+
+            // Manually create the AuthReport instead of calling sql.authorize()
+            UserSession session = sql.createSession(localUser);
+            var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser, LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds), server.keyAgreementManager.ecdsaPrivateKey);
+            var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
+            
+            if (minecraftAccess) {
+                String minecraftAccessToken = SecurityHelper.randomStringToken();
+                sql.updateAuth(localUser, minecraftAccessToken);
+                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+            } else {
+                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+            }
 
         } catch (AuthException e) {
             throw new pro.gravit.launchserver.auth.AuthException(e.getMessage(), e);
         }
     }
 
+    private void enrichUserWithAzuriomData(AbstractSQLCoreProvider.SQLUser localUser, com.azuriom.azauth.model.User azuriomUser) {
+        // localUser.permissions already contains permissions from the local DB.
+        // Now we add the role from Azuriom.
+        if (localUser.getPermissions() != null && azuriomUser.getRole() != null && azuriomUser.getRole().getName() != null) {
+            String azuriomRole = azuriomUser.getRole().getName();
+            if (!localUser.getPermissions().hasRole(azuriomRole)) {
+                localUser.getPermissions().addRole(azuriomRole);
+            }
+        }
+    }
+
+    private void checkHwidBan(AbstractSQLCoreProvider.SQLUser localUser) throws pro.gravit.launchserver.auth.AuthException {
+        if (sql.hardwareIdColumn != null && localUser instanceof SQLCoreProvider.SQLUser && ((SQLCoreProvider.SQLUser) localUser).hwidId > 0) {
+            UserHardware hardware = sql.getHardwareInfoById(String.valueOf(((SQLCoreProvider.SQLUser) localUser).hwidId));
+            if (hardware != null && hardware.isBanned()) {
+                throw new pro.gravit.launchserver.auth.AuthException("Your hardware is banned");
+            }
+        }
+    }
+
     @Override
     public AuthManager.AuthReport refreshAccessToken(String refreshToken, AuthResponse.AuthContext context) {
-        throw new UnsupportedOperationException("Azuriom provider does not support refreshing tokens");
+        // Azuriom's azauth library does not support refresh tokens.
+        // Returning null will force re-authentication via password.
+        return null;
     }
 
     @Override
     public User checkServer(Client client, String username, String serverID) throws IOException {
-        throw new UnsupportedOperationException("Azuriom provider does not support checkServer");
+        return sql.checkServer(client, username, serverID);
     }
-    
+
     @Override
     public List<GetAvailabilityAuthRequestEvent.AuthAvailabilityDetails> getDetails(Client client) {
         return List.of(new AuthPasswordDetails(), new AuthTotpDetails("SHA1"));
@@ -148,68 +201,13 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
 
     @Override
     public boolean joinServer(Client client, String username, UUID uuid, String accessToken, String serverID) throws IOException {
-        throw new UnsupportedOperationException("Azuriom provider does not support joinServer");
+        return sql.joinServer(client, username, uuid, accessToken, serverID);
     }
 
     @Override
     public void close() {
-        // No-op
-    }
-
-    public static class AzuriomUser implements User {
-        private final com.azuriom.azauth.model.User azuriomUser;
-        private final ClientPermissions permissions;
-
-        public AzuriomUser(com.azuriom.azauth.model.User azuriomUser) {
-            this.azuriomUser = azuriomUser;
-            this.permissions = new ClientPermissions();
-            // In a real scenario, you might want to map roles/permissions from Azuriom
-            // For now, we'll leave it empty.
-        }
-
-        @Override
-        public String getUsername() {
-            return azuriomUser.getUsername();
-        }
-
-        @Override
-        public UUID getUUID() {
-            return azuriomUser.getUuid();
-        }
-
-        @Override
-        public ClientPermissions getPermissions() {
-            return permissions;
-        }
-    }
-
-    public static class AzuriomUserSession implements UserSession {
-        private final AzuriomUser user;
-        private final String accessToken;
-
-        public AzuriomUserSession(AzuriomUser user, String accessToken) {
-            this.user = user;
-            this.accessToken = accessToken;
-        }
-
-        @Override
-        public String getID() {
-            return user.getUUID().toString();
-        }
-
-        @Override
-        public User getUser() {
-            return user;
-        }
-
-        @Override
-        public String getMinecraftAccessToken() {
-            return accessToken;
-        }
-
-        @Override
-        public long getExpireIn() {
-            return 0; // Azuriom tokens don't have a client-side expiration
+        if (sql != null) {
+            sql.close();
         }
     }
 }
