@@ -12,6 +12,7 @@ import pro.gravit.launchserver.auth.core.RejectAuthCoreProvider;
 import pro.gravit.launchserver.binary.EXELauncherBinary;
 import pro.gravit.launchserver.binary.JARLauncherBinary;
 import pro.gravit.launchserver.binary.LauncherBinary;
+import pro.gravit.launchserver.binary.LinuxLauncherBinary;
 import pro.gravit.launchserver.config.LaunchServerConfig;
 import pro.gravit.launchserver.config.LaunchServerRuntimeConfig;
 import pro.gravit.launchserver.helper.SignHelper;
@@ -99,6 +100,10 @@ public final class LaunchServer implements Runnable, AutoCloseable, Reconfigurab
      * Pipeline for building EXE
      */
     public final LauncherBinary launcherEXEBinary;
+    /**
+     * Pipeline for building Linux binary
+     */
+    public final LauncherBinary launcherLinuxBinary;
     // Server config
     public final AuthHookManager authHookManager;
     public final LaunchServerModulesManager modulesManager;
@@ -178,9 +183,11 @@ public final class LaunchServer implements Runnable, AutoCloseable, Reconfigurab
         // Set launcher EXE binary
         launcherBinary = new JARLauncherBinary(this);
         launcherEXEBinary = binary();
+        launcherLinuxBinary = new LinuxLauncherBinary(this);
 
         launcherBinary.init();
         launcherEXEBinary.init();
+        launcherLinuxBinary.init();
         syncLauncherBinaries();
         launcherModuleLoader = new LauncherModuleLoader(this);
         if (config.components != null) {
@@ -311,6 +318,7 @@ public final class LaunchServer implements Runnable, AutoCloseable, Reconfigurab
     }
 
     public void buildLauncherBinaries() throws IOException {
+        launcherLinuxBinary.build();
         launcherBinary.build();
         launcherEXEBinary.build();
     }
@@ -399,6 +407,10 @@ public final class LaunchServer implements Runnable, AutoCloseable, Reconfigurab
         if (!launcherEXEBinary.sync())
             logger.warn("Missing launcher EXE binary file");
 
+        // Syncing launcher Linux binary
+        logger.info("Syncing launcher Linux binary file");
+        if (!launcherLinuxBinary.sync())
+            logger.warn("Missing launcher Linux binary file");
     }
 
     public void syncProfilesDir() throws IOException {

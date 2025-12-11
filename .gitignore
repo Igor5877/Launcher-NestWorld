@@ -110,3 +110,6 @@ cmd.sh
 project/target
 ## PVS Studio
 .PVS-Studio/
+
+# Linux Prestarter
+LinuxPrestarter/LinuxPrestarter
