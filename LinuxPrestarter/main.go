@@ -10,9 +10,15 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"runtime"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
 // These variables are set at compile time using -ldflags
@@ -32,60 +38,156 @@ const (
 	JavaFXModules    = "javafx.controls,javafx.fxml,javafx.graphics,javafx.media,javafx.swing,javafx.web"
 )
 
+type progressWriter struct {
+	total      int64
+	written    int64
+	progressBar *widget.ProgressBar
+	mu         sync.Mutex
+}
+
+func (pw *progressWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	pw.mu.Lock()
+	defer pw.mu.Unlock()
+	pw.written += int64(n)
+	pw.progressBar.SetValue(float64(pw.written) / float64(pw.total))
+	return n, nil
+}
+
+// GUI represents the graphical user interface
+type GUI struct {
+	App         fyne.App
+	Window      fyne.Window
+	ProgressBar *widget.ProgressBar
+	StatusLabel *widget.Label
+}
+
+// NewGUI creates a new GUI
+func NewGUI() *GUI {
+	a := app.New()
+	w := a.NewWindow(ProjectName)
+	w.Resize(fyne.NewSize(400, 100))
+	w.SetFixedSize(true)
+	w.CenterOnScreen()
+
+	progressBar := widget.NewProgressBar()
+	statusLabel := widget.NewLabel("Initializing...")
+
+	w.SetContent(container.NewVBox(
+		statusLabel,
+		progressBar,
+	))
+
+	return &GUI{
+		App:         a,
+		Window:      w,
+		ProgressBar: progressBar,
+		StatusLabel: statusLabel,
+	}
+}
+// SetStatus updates the status label text safely
+func (g *GUI) SetStatus(text string) {
+	g.App.SendNotification(&fyne.Notification{
+		Title:   ProjectName,
+		Content: text,
+	})
+	g.StatusLabel.SetText(text)
+}
+
+// SetProgress updates the progress bar value safely
+func (g *GUI) SetProgress(value float64) {
+	g.ProgressBar.SetValue(value)
+}
+
+
 func main() {
-	log.Println("Starting launcher prestarter...")
-
-	if ProjectName == "" || JavaDownloadURLAmd64 == "" || LauncherDownloadURL == "" || JavaFXDownloadURLAmd64 == "" {
-		log.Fatalf("FATAL: Prestarter is not configured. Please build it from LaunchServer.")
+	if ProjectName == "" {
+		ProjectName = "Launcher" // Default title
 	}
 
-	// 1. Ensure Java is available
-	javaExecutable := findJavaExecutable(JavaDirectory)
-	if javaExecutable == "" {
-		log.Println("Java runtime not found. Downloading...")
-		if err := downloadAndUnpackTarGz("Java", getURL(JavaDownloadURLAmd64, JavaDownloadURLArm64), JavaDirectory); err != nil {
-			log.Fatalf("Failed to process Java runtime: %v", err)
+	gui := NewGUI()
+
+
+	go func() {
+		defer gui.App.Quit()
+
+		if JavaDownloadURLAmd64 == "" || LauncherDownloadURL == "" || JavaFXDownloadURLAmd64 == "" {
+			gui.SetStatus("FATAL: Not configured.")
+			log.Println("FATAL: Prestarter is not configured. Please build it from LaunchServer.")
+			return
 		}
-		javaExecutable = findJavaExecutable(JavaDirectory)
+
+		// 1. Ensure Java is available
+		javaURL := getURL(JavaDownloadURLAmd64, JavaDownloadURLArm64)
+		if javaURL == "" {
+			gui.SetStatus(fmt.Sprintf("Error: Unsupported architecture %s", runtime.GOARCH))
+			log.Fatalf("Unsupported architecture: %s", runtime.GOARCH)
+		}
+
+		javaExecutable := findJavaExecutable(JavaDirectory)
 		if javaExecutable == "" {
-			log.Fatalf("Could not find java executable after unpacking")
+			gui.SetStatus("Downloading Java runtime...")
+			err := downloadAndUnpackTarGz("Java", javaURL, JavaDirectory, gui)
+			if err != nil {
+				gui.SetStatus("Error: " + err.Error())
+				log.Fatalf("Failed to process Java runtime: %v", err)
+			}
+			javaExecutable = findJavaExecutable(JavaDirectory)
+			if javaExecutable == "" {
+				gui.SetStatus("Error: Java not found after unpack.")
+				log.Fatalf("Could not find java executable after unpacking")
+			}
+		} else {
+			gui.SetStatus("Java runtime found.")
 		}
-	} else {
-		log.Println("Java runtime found.")
-	}
 
-	// 2. Ensure JavaFX is available
-	javafxSDKPath := filepath.Join(JavaFXDirectory, "lib")
-	if _, err := os.Stat(javafxSDKPath); os.IsNotExist(err) {
-		log.Println("JavaFX SDK not found. Downloading...")
-		if err := downloadAndUnpackZip("JavaFX", getURL(JavaFXDownloadURLAmd64, JavaFXDownloadURLArm64), JavaFXDirectory); err != nil {
-			log.Fatalf("Failed to process JavaFX SDK: %v", err)
+		// 2. Ensure JavaFX is available
+		javafxURL := getURL(JavaFXDownloadURLAmd64, JavaFXDownloadURLArm64)
+		if javafxURL == "" {
+			gui.SetStatus(fmt.Sprintf("Error: Unsupported architecture for JavaFX %s", runtime.GOARCH))
+			log.Fatalf("Unsupported architecture for JavaFX: %s", runtime.GOARCH)
 		}
-	} else {
-		log.Println("JavaFX SDK found.")
-	}
 
-	// 3. Download Launcher.jar
-	log.Printf("Downloading %s...", LauncherJarFile)
-	if err := downloadFile(LauncherDownloadURL, LauncherJarFile); err != nil {
-		log.Fatalf("Failed to download %s: %v", LauncherJarFile, err)
-	}
+		javafxSDKPath := filepath.Join(JavaFXDirectory, "lib")
+		if _, err := os.Stat(javafxSDKPath); os.IsNotExist(err) {
+			gui.SetStatus("Downloading JavaFX SDK...")
+			err := downloadAndUnpackZip("JavaFX", javafxURL, JavaFXDirectory, gui)
+			if err != nil {
+				gui.SetStatus("Error: " + err.Error())
+				log.Fatalf("Failed to process JavaFX SDK: %v", err)
+			}
+		} else {
+			gui.SetStatus("JavaFX SDK found.")
+		}
 
-	// 4. Run the launcher with JavaFX modules
-	log.Printf("Starting launcher with JavaFX...")
+		// 3. Download Launcher.jar if it doesn't exist
+		if _, err := os.Stat(LauncherJarFile); os.IsNotExist(err) {
+			gui.SetStatus("Downloading Launcher...")
+			err := downloadFileWithProgress(LauncherDownloadURL, LauncherJarFile, gui.ProgressBar)
+			if err != nil {
+				gui.SetStatus("Error: " + err.Error())
+				log.Fatalf("Failed to download %s: %v", LauncherJarFile, err)
+			}
+		} else {
+			gui.SetStatus("Launcher found.")
+		}
 
-	args := []string{
-		"--module-path", javafxSDKPath,
-		"--add-modules", JavaFXModules,
-		"-jar", LauncherJarFile,
-	}
+		// 4. Run the launcher
+		gui.SetStatus("Starting Launcher...")
+		args := []string{
+			"--module-path", javafxSDKPath,
+			"--add-modules", JavaFXModules,
+			"-jar", LauncherJarFile,
+		}
+		cmd := exec.Command(javaExecutable, args...)
+		if err := cmd.Start(); err != nil { // Use Start instead of Run to detach
+			gui.SetStatus("Error: " + err.Error())
+			log.Fatalf("Failed to start launcher: %v", err)
+		}
+		// The prestarter will exit, leaving the launcher running.
+	}()
 
-	cmd := exec.Command(javaExecutable, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		log.Fatalf("Failed to start launcher: %v", err)
-	}
+	gui.Window.ShowAndRun()
 }
 
 func getURL(amd64URL, arm64URL string) string {
@@ -93,43 +195,13 @@ func getURL(amd64URL, arm64URL string) string {
 	case "amd64":
 		return amd64URL
 	case "arm64":
-		if arm64URL != "" {
-			return arm64URL
-		}
-		return amd64URL // Fallback
+		return arm64URL
 	default:
 		return ""
 	}
 }
-
-func downloadAndUnpackTarGz(name, url, destination string) error {
-	archivePath := name + ".tar.gz"
-	if err := downloadFile(url, archivePath); err != nil {
-		return fmt.Errorf("failed to download %s: %w", name, err)
-	}
-	log.Printf("Unpacking %s...", name)
-	if err := unpackTarGz(archivePath, destination); err != nil {
-		return fmt.Errorf("failed to unpack %s: %w", name, err)
-	}
-	os.Remove(archivePath)
-	return nil
-}
-
-func downloadAndUnpackZip(name, url, destination string) error {
-	archivePath := name + ".zip"
-	if err := downloadFile(url, archivePath); err != nil {
-		return fmt.Errorf("failed to download %s: %w", name, err)
-	}
-	log.Printf("Unpacking %s...", name)
-	if err := unpackZip(archivePath, destination); err != nil {
-		return fmt.Errorf("failed to unpack %s: %w", name, err)
-	}
-	os.Remove(archivePath)
-	return nil
-}
-
-func downloadFile(url, filepath string) error {
-	log.Printf("Downloading %s from %s", filepath, url)
+func downloadFileWithProgress(url, filepath string, progressBar *widget.ProgressBar) error {
+	progressBar.SetValue(0)
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -137,7 +209,7 @@ func downloadFile(url, filepath string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status downloading %s: %s", url, resp.Status)
+		return fmt.Errorf("bad status: %s", resp.Status)
 	}
 
 	out, err := os.Create(filepath)
@@ -146,8 +218,41 @@ func downloadFile(url, filepath string) error {
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
+	pw := &progressWriter{
+		total:      resp.ContentLength,
+		progressBar: progressBar,
+	}
+
+	_, err = io.Copy(out, io.TeeReader(resp.Body, pw))
 	return err
+}
+
+func downloadAndUnpackTarGz(name, url, destination string, gui *GUI) error {
+	archivePath := name + ".tar.gz"
+	if err := downloadFileWithProgress(url, archivePath, gui.ProgressBar); err != nil {
+		return fmt.Errorf("failed to download %s: %w", name, err)
+	}
+	gui.SetStatus(fmt.Sprintf("Unpacking %s...", name))
+	gui.SetProgress(0)
+	if err := unpackTarGz(archivePath, destination); err != nil {
+		return fmt.Errorf("failed to unpack %s: %w", name, err)
+	}
+	os.Remove(archivePath)
+	return nil
+}
+
+func downloadAndUnpackZip(name, url, destination string, gui *GUI) error {
+	archivePath := name + ".zip"
+	if err := downloadFileWithProgress(url, archivePath, gui.ProgressBar); err != nil {
+		return fmt.Errorf("failed to download %s: %w", name, err)
+	}
+	gui.SetStatus(fmt.Sprintf("Unpacking %s...", name))
+	gui.SetProgress(0)
+	if err := unpackZip(archivePath, destination); err != nil {
+		return fmt.Errorf("failed to unpack %s: %w", name, err)
+	}
+	os.Remove(archivePath)
+	return nil
 }
 
 func unpackTarGz(source, destination string) error {
@@ -236,7 +341,6 @@ func unpackZip(source, destination string) error {
     }
     return nil
 }
-
 
 func findJavaExecutable(searchDir string) string {
 	var javaPath string

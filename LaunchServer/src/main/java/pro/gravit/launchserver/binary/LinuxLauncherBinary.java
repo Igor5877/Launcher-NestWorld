@@ -42,11 +42,11 @@ public class LinuxLauncherBinary extends LauncherBinary {
             javafxAmd64Url = "https://example.com/javafx-amd64.zip"; // Placeholder
         }
 
-        if (javaArm64Url == null || javaArm64Url.isEmpty()) {
-            javaArm64Url = javaAmd64Url;
+        if (javaArm64Url == null) {
+            javaArm64Url = "";
         }
-        if (javafxArm64Url == null || javafxArm64Url.isEmpty()) {
-            javafxArm64Url = javafxAmd64Url;
+        if (javafxArm64Url == null) {
+            javafxArm64Url = "";
         }
 
         String launcherUrl = "http://localhost:9274/Launcher.jar"; // Default value
@@ -72,9 +72,6 @@ public class LinuxLauncherBinary extends LauncherBinary {
 
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         processBuilder.directory(sourceDir.toFile());
-
-        Map<String, String> env = processBuilder.environment();
-        env.put("CGO_ENABLED", "0");
 
         processBuilder.redirectErrorStream(true);
 
