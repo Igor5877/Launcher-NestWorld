@@ -30,14 +30,23 @@ public class LinuxLauncherBinary extends LauncherBinary {
 
         String javaAmd64Url = server.config.netty.javaDownloadURLAmd64;
         String javaArm64Url = server.config.netty.javaDownloadURLArm64;
+        String javafxAmd64Url = server.config.netty.javafxDownloadURLAmd64;
+        String javafxArm64Url = server.config.netty.javafxDownloadURLArm64;
 
         if (javaAmd64Url == null || javaAmd64Url.isEmpty()) {
-            LogHelper.warning("javaDownloadURLAmd64 is not set in NettyConfig. Using placeholder.");
-            javaAmd64Url = "https://example.com/java-amd64.tar.gz";
+            LogHelper.warning("javaDownloadURLAmd64 is not set in NettyConfig. Build will likely fail for users.");
+            javaAmd64Url = "https://example.com/java-amd64.tar.gz"; // Placeholder
         }
+        if (javafxAmd64Url == null || javafxAmd64Url.isEmpty()) {
+            LogHelper.warning("javafxDownloadURLAmd64 is not set in NettyConfig. Build will likely fail for users.");
+            javafxAmd64Url = "https://example.com/javafx-amd64.zip"; // Placeholder
+        }
+
         if (javaArm64Url == null || javaArm64Url.isEmpty()) {
-            // Fallback to amd64 URL if arm64 is not specified
             javaArm64Url = javaAmd64Url;
+        }
+        if (javafxArm64Url == null || javafxArm64Url.isEmpty()) {
+            javafxArm64Url = javafxAmd64Url;
         }
 
         String launcherUrl = "http://localhost:9274/Launcher.jar"; // Default value
@@ -54,8 +63,9 @@ public class LinuxLauncherBinary extends LauncherBinary {
         command.add("-ldflags");
 
         String ldFlags = String.format(
-            "-X main.ProjectName='%s' -X main.JavaDownloadURLAmd64='%s' -X main.JavaDownloadURLArm64='%s' -X main.LauncherDownloadURL='%s'",
-            projectName, javaAmd64Url, javaArm64Url, launcherUrl
+            "-X main.ProjectName='%s' -X main.JavaDownloadURLAmd64='%s' -X main.JavaDownloadURLArm64='%s' " +
+            "-X main.JavaFXDownloadURLAmd64='%s' -X main.JavaFXDownloadURLArm64='%s' -X main.LauncherDownloadURL='%s'",
+            projectName, javaAmd64Url, javaArm64Url, javafxAmd64Url, javafxArm64Url, launcherUrl
         );
         command.add(ldFlags);
         command.add(".");
