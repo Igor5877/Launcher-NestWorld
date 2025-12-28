@@ -2,6 +2,9 @@ package pro.gravit.launchserver.auth.core;
 
 import com.azuriom.azauth.AuthClient;
 import com.azuriom.azauth.exception.AuthException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import pro.gravit.launcher.base.ClientPermissions;
 import pro.gravit.launcher.base.events.request.GetAvailabilityAuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launcher.base.request.auth.details.AuthPasswordDetails;
@@ -17,8 +20,6 @@ import pro.gravit.launchserver.manangers.AuthManager;
 import pro.gravit.launchserver.socket.Client;
 import pro.gravit.launchserver.socket.response.auth.AuthResponse;
 import pro.gravit.utils.helper.SecurityHelper;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -33,47 +34,113 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
     public String azuriomUrl;
     public SQLCoreProvider sql;
     private transient AuthClient authClient;
+    private transient boolean isDatabaseMode = false; // Прапорець, що показує, чи налаштована БД
+
+    // --- Внутрішні реалізації для офлайн-режиму ---
+    private record OfflineUser(String username, UUID uuid, ClientPermissions permissions) implements User {
+        @Override
+        public String getUsername() {
+            return username;
+        }
+
+        @Override
+        public UUID getUUID() {
+            return uuid;
+        }
+
+        @Override
+        public ClientPermissions getPermissions() {
+            return permissions;
+        }
+    }
+
+    private record OfflineUserSession(User user) implements UserSession {
+        @Override
+        public String getID() {
+            return "offline-" + user.getUUID().toString();
+        }
+
+        @Override
+        public User getUser() {
+            return user;
+        }
+
+        @Override
+        public String getMinecraftAccessToken() {
+            return null;
+        }
+
+        @Override
+        public long getExpireIn() {
+            return 0;
+        }
+    }
+    // ---------------------------------------------
+
 
     @Override
     public void init(LaunchServer server, AuthProviderPair pair) {
         super.init(server, pair);
         if (azuriomUrl == null || azuriomUrl.isEmpty()) {
-            logger.error("azuriomUrl is not configured");
-            return;
-        }
-        if (sql == null) {
-            logger.error("sql provider is not configured inside AzuriomCoreProvider");
+            logger.error("azuriomUrl is not configured! Azuriom provider cannot work.");
             return;
         }
         this.authClient = new AuthClient(azuriomUrl);
-        sql.init(server, pair);
+
+        if (sql != null) {
+            sql.init(server, pair);
+            isDatabaseMode = true;
+            logger.info("Azuriom provider: Database integration is ENABLED.");
+        } else {
+            isDatabaseMode = false;
+            logger.warn("Azuriom provider: 'sql' section is not configured. Working WITHOUT database integration.");
+        }
     }
 
     @Override
     public User getUserByUsername(String username) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot get user by username '{}'.", username);
+            return null;
+        }
         return sql.getUserByUsername(username);
     }
 
     @Override
     public User getUserByUUID(UUID uuid) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot get user by UUID '{}'.", uuid);
+            return null;
+        }
         return sql.getUserByUUID(uuid);
     }
 
     @Override
     public User getUserByLogin(String login) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot get user by login '{}'.", login);
+            return null;
+        }
         return sql.getUserByLogin(login);
+    }
+
+    private UserSession createOfflineSession(com.azuriom.azauth.model.User azuriomUser) {
+        User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), new ClientPermissions());
+        return new OfflineUserSession(user);
     }
 
     @Override
     public UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired {
         if (authClient == null) {
-            logger.error("Azuriom provider is not configured");
-            return null;
+            throw new OAuthAccessTokenExpired("Azuriom provider is not initialized");
         }
         try {
-            // This method is only for verifying an existing token. If it fails, we don't try to refresh,
-            // we just fail, which will force the user to log in with their password.
             com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
+
+            if (!isDatabaseMode) {
+                return createOfflineSession(azuriomUser);
+            }
+
             AbstractSQLCoreProvider.SQLUser localUser = (AbstractSQLCoreProvider.SQLUser) sql.getUserByUUID(azuriomUser.getUuid());
 
             if (localUser == null) {
@@ -85,14 +152,12 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             checkHwidBan(localUser);
 
             return sql.createSession(localUser);
+
         } catch (AuthException e) {
-            // Any exception during verification means the token is invalid.
-            // We throw OAuthAccessTokenExpired to signal the client to clear the token and re-authenticate.
             throw new OAuthAccessTokenExpired();
         } catch (pro.gravit.launchserver.auth.AuthException e) {
-            // This could be a HWID ban or another local issue.
             logger.error("Local user check failed during token verification", e);
-            throw new OAuthAccessTokenExpired(); // Also force re-authentication
+            throw new OAuthAccessTokenExpired();
         }
     }
 
@@ -134,6 +199,21 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             }
 
             com.azuriom.azauth.model.User azuriomUser = result.getSuccessResult();
+
+            if (!isDatabaseMode) {
+                UserSession session = createOfflineSession(azuriomUser);
+                User user = session.getUser();
+                var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(user, LocalDateTime.now(Clock.systemUTC()).plusSeconds(3600), server.keyAgreementManager.ecdsaPrivateKey);
+                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
+
+                if (minecraftAccess) {
+                    String minecraftAccessToken = SecurityHelper.randomStringToken();
+                    return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(3600), session);
+                } else {
+                    return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(3600), session);
+                }
+            }
+
             AbstractSQLCoreProvider.SQLUser localUser = (AbstractSQLCoreProvider.SQLUser) sql.getUserByUUID(azuriomUser.getUuid());
 
             if (localUser == null) {
@@ -144,11 +224,10 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
 
-            // Manually create the AuthReport instead of calling sql.authorize()
             UserSession session = sql.createSession(localUser);
             var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser, LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds), server.keyAgreementManager.ecdsaPrivateKey);
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
-            
+
             if (minecraftAccess) {
                 String minecraftAccessToken = SecurityHelper.randomStringToken();
                 sql.updateAuth(localUser, minecraftAccessToken);
@@ -163,8 +242,6 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
     }
 
     private void enrichUserWithAzuriomData(AbstractSQLCoreProvider.SQLUser localUser, com.azuriom.azauth.model.User azuriomUser) {
-        // localUser.permissions already contains permissions from the local DB.
-        // Now we add the role from Azuriom.
         if (localUser.getPermissions() != null && azuriomUser.getRole() != null && azuriomUser.getRole().getName() != null) {
             String azuriomRole = azuriomUser.getRole().getName();
             if (!localUser.getPermissions().hasRole(azuriomRole)) {
@@ -174,7 +251,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
     }
 
     private void checkHwidBan(AbstractSQLCoreProvider.SQLUser localUser) throws pro.gravit.launchserver.auth.AuthException {
-        if (sql.hardwareIdColumn != null && localUser instanceof SQLCoreProvider.SQLUser && ((SQLCoreProvider.SQLUser) localUser).hwidId > 0) {
+        if (isDatabaseMode && sql.hardwareIdColumn != null && localUser instanceof SQLCoreProvider.SQLUser && ((SQLCoreProvider.SQLUser) localUser).hwidId > 0) {
             UserHardware hardware = sql.getHardwareInfoById(String.valueOf(((SQLCoreProvider.SQLUser) localUser).hwidId));
             if (hardware != null && hardware.isBanned()) {
                 throw new pro.gravit.launchserver.auth.AuthException("Your hardware is banned");
@@ -184,13 +261,15 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
 
     @Override
     public AuthManager.AuthReport refreshAccessToken(String refreshToken, AuthResponse.AuthContext context) {
-        // Azuriom's azauth library does not support refresh tokens.
-        // Returning null will force re-authentication via password.
         return null;
     }
 
     @Override
     public User checkServer(Client client, String username, String serverID) throws IOException {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot check server for user '{}'.", username);
+            return null;
+        }
         return sql.checkServer(client, username, serverID);
     }
 
@@ -201,12 +280,16 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
 
     @Override
     public boolean joinServer(Client client, String username, UUID uuid, String accessToken, String serverID) throws IOException {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot join server for user '{}'.", username);
+            return false;
+        }
         return sql.joinServer(client, username, uuid, accessToken, serverID);
     }
 
     @Override
     public void close() {
-        if (sql != null) {
+        if (isDatabaseMode && sql != null) {
             sql.close();
         }
     }
