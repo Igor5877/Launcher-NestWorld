@@ -165,7 +165,19 @@ public class AuthFlow {
                         result.completeExceptionally(new RequestException(error));
                     } else if (error.equals(AuthRequestEvent.TWO_FACTOR_NEED_ERROR_MESSAGE)) {
                         authFlow.clear();
-                        authFlow.add(1);
+                        int totpImpl = -1;
+                        for (int i = 0; i < authAvailability.details.size(); ++i) {
+                            var details = authAvailability.details.get(i);
+                            if (details instanceof AuthTotpDetails) {
+                                totpImpl = i;
+                                break;
+                            }
+                        }
+                        if (totpImpl < 0) {
+                            accessor.errorHandle(new RequestException("2FA required, but no 2FA method found"));
+                            return;
+                        }
+                        authFlow.add(totpImpl);
                         accessor.runInFxThread(() -> start(result, login, password));
                     } else if (error.startsWith(AuthRequestEvent.ONE_FACTOR_NEED_ERROR_MESSAGE_PREFIX)) {
                         List<Integer> newAuthFlow = new ArrayList<>();
