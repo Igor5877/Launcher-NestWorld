@@ -15,4 +15,5 @@ project.ext {
     verPostgreSQLConn = '42.7.4'
     verH2Conn = '2.3.232'
     verProguard = '7.6.0'
+    verazuriom = '1.1.0'
 }
