@@ -261,6 +261,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
 
     @Override
     public AuthManager.AuthReport refreshAccessToken(String refreshToken, AuthResponse.AuthContext context) {
+        logger.warn("AzuriomCoreProvider does not support refresh tokens. Full re-authentication is required.");
         return null;
     }
 
