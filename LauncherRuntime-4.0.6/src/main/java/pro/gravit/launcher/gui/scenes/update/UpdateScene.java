@@ -23,9 +23,11 @@ public class UpdateScene extends AbstractScene {
     private Label speedtext;
     private Label speederr;
     private Pane speedon;
+    private Button retryButton;
 
     private VisualDownloader downloader;
     private volatile DownloadStatus downloadStatus = DownloadStatus.COMPLETE;
+    private Runnable lastUpdateRequest;
 
     public UpdateScene(JavaFXApplication application) {
         super("scenes/update/update.fxml", application);
@@ -41,6 +43,7 @@ public class UpdateScene extends AbstractScene {
         cancel = LookupHelper.lookup(layout, "#cancel");
         volume = LookupHelper.lookup(layout, "#volume");
         logOutput = LookupHelper.lookup(layout, "#outputUpdate");
+        retryButton = LookupHelper.lookup(layout, "#retryButton");
         downloader = new VisualDownloader(application, progressBar, speed, volume, this::errorHandle,
                                           (log) -> contextHelper.runInFxThread(() -> addLog(log)), this::onUpdateStatus);
         LookupHelper.<ButtonBase>lookup(layout, "#cancel").setOnAction((e) -> {
@@ -54,6 +57,14 @@ public class UpdateScene extends AbstractScene {
                 }
             }
         });
+        retryButton.setOnAction((e) -> retryUpdate());
+    }
+
+    private void retryUpdate() {
+        if (lastUpdateRequest != null) {
+            reset();
+            lastUpdateRequest.run();
+        }
     }
 
     private void onUpdateStatus(DownloadStatus newStatus) {
@@ -63,12 +74,14 @@ public class UpdateScene extends AbstractScene {
 
     public void sendUpdateAssetRequest(String dirName, Path dir, FileNameMatcher matcher, boolean digest,
             String assetIndex, boolean test, Consumer<HashedDir> onSuccess) {
-        downloader.sendUpdateAssetRequest(dirName, dir, matcher, digest, assetIndex, test, onSuccess);
+        lastUpdateRequest = () -> downloader.sendUpdateAssetRequest(dirName, dir, matcher, digest, assetIndex, test, onSuccess);
+        lastUpdateRequest.run();
     }
 
     public void sendUpdateRequest(String dirName, Path dir, FileNameMatcher matcher, boolean digest, OptionalView view,
             boolean optionalsEnabled, boolean test, Consumer<HashedDir> onSuccess) {
-        downloader.sendUpdateRequest(dirName, dir, matcher, digest, view, optionalsEnabled, test, onSuccess);
+        lastUpdateRequest = () -> downloader.sendUpdateRequest(dirName, dir, matcher, digest, view, optionalsEnabled, test, onSuccess);
+        lastUpdateRequest.run();
     }
 
     public void addLog(String string) {
@@ -82,9 +95,10 @@ public class UpdateScene extends AbstractScene {
         logOutput.setText("");
         volume.setText("");
         speed.setText("0");
-        progressBar.getStyleClass().removeAll("progress");
+        progressBar.getStyleClass().removeAll("progressError");
         speederr.setVisible(false);
         speedon.setVisible(true);
+        retryButton.setVisible(false);
     }
 
     @Override
@@ -96,6 +110,7 @@ public class UpdateScene extends AbstractScene {
         progressBar.getStyleClass().add("progressError");
         speederr.setVisible(true);
         speedon.setVisible(false);
+        retryButton.setVisible(true);
         LogHelper.error(e);
     }
 
