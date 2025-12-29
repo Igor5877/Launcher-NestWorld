@@ -20,6 +20,7 @@ import pro.gravit.launchserver.manangers.AuthManager;
 import pro.gravit.launchserver.socket.Client;
 import pro.gravit.launchserver.socket.response.auth.AuthResponse;
 import pro.gravit.utils.helper.SecurityHelper;
+import pro.gravit.launchserver.helper.HexHelper;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -161,6 +162,13 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
         }
     }
 
+    private String makeOfflineRefreshToken(User user) {
+        String unsignedToken = String.format("%s:%s", user.getUUID().toString(), user.getUsername());
+        String salt = server.keyAgreementManager.legacySalt;
+        String signature = HexHelper.toHex(SecurityHelper.digest(SecurityHelper.DigestAlgorithm.SHA256, unsignedToken + salt));
+        return String.format("%s:%s", unsignedToken, signature);
+    }
+
     @Override
     public AuthManager.AuthReport authorize(String login, AuthResponse.AuthContext context, AuthRequest.AuthPasswordInterface password, boolean minecraftAccess) throws IOException, pro.gravit.launchserver.auth.AuthException {
         if (authClient == null) {
@@ -204,7 +212,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
                 UserSession session = createOfflineSession(azuriomUser);
                 User user = session.getUser();
                 var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(user, LocalDateTime.now(Clock.systemUTC()).plusSeconds(3600), server.keyAgreementManager.ecdsaPrivateKey);
-                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
+                var refreshToken = makeOfflineRefreshToken(user);
 
                 if (minecraftAccess) {
                     String minecraftAccessToken = SecurityHelper.randomStringToken();
@@ -261,7 +269,42 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
 
     @Override
     public AuthManager.AuthReport refreshAccessToken(String refreshToken, AuthResponse.AuthContext context) {
-        return null;
+        if (isDatabaseMode) {
+            return sql.refreshAccessToken(refreshToken, context);
+        }
+
+        String[] parts = refreshToken.split(":");
+        if (parts.length != 3) {
+            logger.debug("Invalid offline refresh token format");
+            return null;
+        }
+
+        UUID uuid;
+        try {
+            uuid = UUID.fromString(parts[0]);
+        } catch (IllegalArgumentException e) {
+            logger.debug("Invalid UUID in offline refresh token", e);
+            return null;
+        }
+
+        String username = parts[1];
+        String signature = parts[2];
+
+        String unsignedToken = String.format("%s:%s", uuid, username);
+        String salt = server.keyAgreementManager.legacySalt;
+        String expectedSignature = HexHelper.toHex(SecurityHelper.digest(SecurityHelper.DigestAlgorithm.SHA256, unsignedToken + salt));
+
+        if (!expectedSignature.equals(signature)) {
+            logger.debug("Invalid signature for offline refresh token");
+            return null;
+        }
+
+        User user = new OfflineUser(username, uuid, new ClientPermissions());
+        UserSession session = new OfflineUserSession(user);
+        var newAccessToken = LegacySessionHelper.makeAccessJwtTokenFromString(user, LocalDateTime.now(Clock.systemUTC()).plusSeconds(3600), server.keyAgreementManager.ecdsaPrivateKey);
+        var newRefreshToken = makeOfflineRefreshToken(user);
+
+        return AuthManager.AuthReport.ofOAuth(newAccessToken, newRefreshToken, SECONDS.toMillis(3600), session);
     }
 
     @Override
