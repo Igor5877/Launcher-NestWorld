@@ -15,6 +15,8 @@ import pro.gravit.launcher.base.request.auth.password.AuthTOTPPassword;
 import pro.gravit.launchserver.LaunchServer;
 import pro.gravit.launchserver.auth.AuthProviderPair;
 import pro.gravit.launchserver.auth.core.interfaces.UserHardware;
+import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportExtendedCheckServer;
+import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportHardware;
 import pro.gravit.launchserver.helper.LegacySessionHelper;
 import pro.gravit.launchserver.manangers.AuthManager;
 import pro.gravit.launchserver.socket.Client;
@@ -29,12 +31,12 @@ import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public class AzuriomCoreProvider extends AuthCoreProvider {
+public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupportHardware, AuthSupportExtendedCheckServer {
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
-    public SQLCoreProvider sql;
+    public MySQLCoreProvider sql;
     private transient AuthClient authClient;
-    private transient boolean isDatabaseMode = false; // Прапорець, що показує, чи налаштована БД
+    private transient boolean isDatabaseMode = false;
 
     // --- Внутрішні реалізації для офлайн-режиму ---
     private record OfflineUser(String username, UUID uuid, ClientPermissions permissions) implements User {
@@ -75,8 +77,6 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             return 0;
         }
     }
-    // ---------------------------------------------
-
 
     @Override
     public void init(LaunchServer server, AuthProviderPair pair) {
@@ -90,7 +90,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
         if (sql != null) {
             sql.init(server, pair);
             isDatabaseMode = true;
-            logger.info("Azuriom provider: Database integration is ENABLED.");
+            logger.info("Azuriom provider: Database integration is ENABLED with HWID support.");
         } else {
             isDatabaseMode = false;
             logger.warn("Azuriom provider: 'sql' section is not configured. Working WITHOUT database integration.");
@@ -141,10 +141,11 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
                 return createOfflineSession(azuriomUser);
             }
 
-            AbstractSQLCoreProvider.SQLUser localUser = (AbstractSQLCoreProvider.SQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
 
             if (localUser == null) {
-                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.", azuriomUser.getUsername(), azuriomUser.getUuid());
+                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.", 
+                    azuriomUser.getUsername(), azuriomUser.getUuid());
                 return null;
             }
 
@@ -154,10 +155,10 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             return sql.createSession(localUser);
 
         } catch (AuthException e) {
-            throw new OAuthAccessTokenExpired();
+            throw new OAuthAccessTokenExpired(e.getMessage());
         } catch (pro.gravit.launchserver.auth.AuthException e) {
             logger.error("Local user check failed during token verification", e);
-            throw new OAuthAccessTokenExpired();
+            throw new OAuthAccessTokenExpired(e.getMessage());
         }
     }
 
@@ -203,7 +204,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             if (!isDatabaseMode) {
                 UserSession session = createOfflineSession(azuriomUser);
                 User user = session.getUser();
-                var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(user, LocalDateTime.now(Clock.systemUTC()).plusSeconds(3600), server.keyAgreementManager.ecdsaPrivateKey);
+                var accessToken = azuriomUser.getAccessToken();
                 var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
 
                 if (minecraftAccess) {
@@ -214,10 +215,11 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
                 }
             }
 
-            AbstractSQLCoreProvider.SQLUser localUser = (AbstractSQLCoreProvider.SQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
 
             if (localUser == null) {
-                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.", azuriomUser.getUsername(), azuriomUser.getUuid());
+                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.", 
+                    azuriomUser.getUsername(), azuriomUser.getUuid());
                 throw new pro.gravit.launchserver.auth.AuthException("User not found in local database");
             }
 
@@ -225,7 +227,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             checkHwidBan(localUser);
 
             UserSession session = sql.createSession(localUser);
-            var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser, LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds), server.keyAgreementManager.ecdsaPrivateKey);
+            var accessToken = azuriomUser.getAccessToken();
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
 
             if (minecraftAccess) {
@@ -241,7 +243,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
         }
     }
 
-    private void enrichUserWithAzuriomData(AbstractSQLCoreProvider.SQLUser localUser, com.azuriom.azauth.model.User azuriomUser) {
+    private void enrichUserWithAzuriomData(MySQLCoreProvider.MySQLUser localUser, com.azuriom.azauth.model.User azuriomUser) {
         if (localUser.getPermissions() != null && azuriomUser.getRole() != null && azuriomUser.getRole().getName() != null) {
             String azuriomRole = azuriomUser.getRole().getName();
             if (!localUser.getPermissions().hasRole(azuriomRole)) {
@@ -250,9 +252,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
         }
     }
 
-    private void checkHwidBan(AbstractSQLCoreProvider.SQLUser localUser) throws pro.gravit.launchserver.auth.AuthException {
-        if (isDatabaseMode && sql.hardwareIdColumn != null && localUser instanceof SQLCoreProvider.SQLUser && ((SQLCoreProvider.SQLUser) localUser).hwidId > 0) {
-            UserHardware hardware = sql.getHardwareInfoById(String.valueOf(((SQLCoreProvider.SQLUser) localUser).hwidId));
+    private void checkHwidBan(MySQLCoreProvider.MySQLUser localUser) throws pro.gravit.launchserver.auth.AuthException {
+        if (isDatabaseMode && localUser.hwidId > 0) {
+            UserHardware hardware = sql.getHardwareInfoById(String.valueOf(localUser.hwidId));
             if (hardware != null && hardware.isBanned()) {
                 throw new pro.gravit.launchserver.auth.AuthException("Your hardware is banned");
             }
@@ -261,7 +263,10 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
 
     @Override
     public AuthManager.AuthReport refreshAccessToken(String refreshToken, AuthResponse.AuthContext context) {
-        return null;
+        if (!isDatabaseMode) {
+            return null;
+        }
+        return sql.refreshAccessToken(refreshToken, context);
     }
 
     @Override
@@ -271,6 +276,22 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             return null;
         }
         return sql.checkServer(client, username, serverID);
+    }
+
+    @Override
+    public UserSession extendedCheckServer(Client client, String username, String serverID) throws IOException {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot extended check server for user '{}'.", username);
+            return null;
+        }
+        MySQLCoreProvider.MySQLUser user = (MySQLCoreProvider.MySQLUser) sql.getUserByUsername(username);
+        if (user == null) {
+            return null;
+        }
+        if (user.getUsername().equals(username) && user.getServerId().equals(serverID)) {
+            return sql.createSession(user);
+        }
+        return null;
     }
 
     @Override
@@ -285,6 +306,89 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             return false;
         }
         return sql.joinServer(client, username, uuid, accessToken, serverID);
+    }
+
+    // ===== HWID Support Methods =====
+
+    @Override
+    public UserHardware getHardwareInfoByPublicKey(byte[] publicKey) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot get hardware by public key.");
+            return null;
+        }
+        return sql.getHardwareInfoByPublicKey(publicKey);
+    }
+
+    @Override
+    public UserHardware getHardwareInfoByData(pro.gravit.launcher.base.request.secure.HardwareReportRequest.HardwareInfo info) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot get hardware by data.");
+            return null;
+        }
+        return sql.getHardwareInfoByData(info);
+    }
+
+    @Override
+    public UserHardware getHardwareInfoById(String id) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot get hardware by id.");
+            return null;
+        }
+        return sql.getHardwareInfoById(id);
+    }
+
+    @Override
+    public UserHardware createHardwareInfo(pro.gravit.launcher.base.request.secure.HardwareReportRequest.HardwareInfo hardwareInfo, byte[] publicKey) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot create hardware info.");
+            return null;
+        }
+        return sql.createHardwareInfo(hardwareInfo, publicKey);
+    }
+
+    @Override
+    public void connectUserAndHardware(UserSession userSession, UserHardware hardware) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot connect user and hardware.");
+            return;
+        }
+        sql.connectUserAndHardware(userSession, hardware);
+    }
+
+    @Override
+    public void addPublicKeyToHardwareInfo(UserHardware hardware, byte[] publicKey) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot add public key to hardware.");
+            return;
+        }
+        sql.addPublicKeyToHardwareInfo(hardware, publicKey);
+    }
+
+    @Override
+    public Iterable<User> getUsersByHardwareInfo(UserHardware hardware) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot get users by hardware.");
+            return null;
+        }
+        return sql.getUsersByHardwareInfo(hardware);
+    }
+
+    @Override
+    public void banHardware(UserHardware hardware) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot ban hardware.");
+            return;
+        }
+        sql.banHardware(hardware);
+    }
+
+    @Override
+    public void unbanHardware(UserHardware hardware) {
+        if (!isDatabaseMode) {
+            logger.warn("Database mode is disabled. Cannot unban hardware.");
+            return;
+        }
+        sql.unbanHardware(hardware);
     }
 
     @Override
