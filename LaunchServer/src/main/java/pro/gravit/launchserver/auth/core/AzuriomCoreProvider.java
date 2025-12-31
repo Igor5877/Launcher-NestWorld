@@ -155,10 +155,10 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             return sql.createSession(localUser);
 
         } catch (AuthException e) {
-            throw new OAuthAccessTokenExpired();
+            throw new OAuthAccessTokenExpired(e.getMessage());
         } catch (pro.gravit.launchserver.auth.AuthException e) {
             logger.error("Local user check failed during token verification", e);
-            throw new OAuthAccessTokenExpired();
+            throw new OAuthAccessTokenExpired(e.getMessage());
         }
     }
 
