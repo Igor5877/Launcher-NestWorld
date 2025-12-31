@@ -336,6 +336,7 @@ public class MySQLCoreProvider extends AbstractSQLCoreProvider implements AuthSu
 
     public static class MySQLUser extends SQLUser {
         protected long hwidId;
+        public String azuriomAccessToken;
 
         public MySQLUser(UUID uuid, String username, String accessToken, String serverId, String password, long hwidId) {
             super(uuid, username, accessToken, serverId, password);

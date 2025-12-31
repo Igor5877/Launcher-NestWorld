@@ -163,7 +163,10 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
         try {
             checkHwidBan(localUser);
-        } catch (pro.gravit.launchserver.auth.AuthException e) {
+            if (localUser.azuriomAccessToken != null) {
+                authClient.verify(localUser.azuriomAccessToken);
+            }
+        } catch (pro.gravit.launchserver.auth.AuthException | AuthException e) {
             logger.error("Local user check failed during token verification", e);
             throw new OAuthAccessTokenExpired();
         }
@@ -208,7 +211,8 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 throw new pro.gravit.launchserver.auth.AuthException("Authentication failed: " + result.toString());
             }
 
-            com.azuriom.azauth.model.User azuriomUser = result.getSuccessResult();
+            com.azuriom.azauth.model.User azuriomUser = result.asSuccess().getResult();
+            String azuriomAccessToken = result.asSuccess().getResult().getAccessToken();
 
             if (!isDatabaseMode) {
                 UserSession session = createOfflineSession(azuriomUser);
@@ -231,6 +235,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                     azuriomUser.getUsername(), azuriomUser.getUuid());
                 throw new pro.gravit.launchserver.auth.AuthException("User not found in local database");
             }
+            localUser.azuriomAccessToken = azuriomAccessToken;
 
             enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
