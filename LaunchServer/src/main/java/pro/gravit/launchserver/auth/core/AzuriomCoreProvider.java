@@ -2,6 +2,10 @@ package pro.gravit.launchserver.auth.core;
 
 import com.azuriom.azauth.AuthClient;
 import com.azuriom.azauth.exception.AuthException;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.gravit.launcher.base.ClientPermissions;
@@ -131,35 +135,40 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired {
-        if (authClient == null) {
-            throw new OAuthAccessTokenExpired("Azuriom provider is not initialized");
-        }
+        Jws<Claims> claims;
         try {
-            com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
+            JwtParser parser = Jwts.parser().verifyWith(server.keyAgreementManager.ecdsaPublicKey).build();
+            claims = parser.parseSignedClaims(accessToken);
+        } catch (Exception e) {
+            throw new OAuthAccessTokenExpired(e.getMessage());
+        }
+        Claims body = claims.getBody();
+        String username = body.get("sub", String.class);
+        UUID uuid = UUID.fromString(body.get("uuid", String.class));
+        if (username == null || uuid == null) {
+            throw new OAuthAccessTokenExpired("Invalid access token");
+        }
 
-            if (!isDatabaseMode) {
-                return createOfflineSession(azuriomUser);
-            }
+        if (!isDatabaseMode) {
+            User user = new OfflineUser(username, uuid, new ClientPermissions());
+            return new OfflineUserSession(user);
+        }
 
-            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+        MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(uuid);
 
-            if (localUser == null) {
-                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.",
-                    azuriomUser.getUsername(), azuriomUser.getUuid());
-                return null;
-            }
+        if (localUser == null) {
+            logger.warn("User '{}' (UUID: {}) authenticated via JWT but not found in local database.", username, uuid);
+            return null;
+        }
 
-            enrichUserWithAzuriomData(localUser, azuriomUser);
+        try {
             checkHwidBan(localUser);
-
-            return sql.createSession(localUser);
-
-        } catch (AuthException e) {
-            throw new OAuthAccessTokenExpired();
         } catch (pro.gravit.launchserver.auth.AuthException e) {
             logger.error("Local user check failed during token verification", e);
             throw new OAuthAccessTokenExpired();
         }
+
+        return sql.createSession(localUser);
     }
 
     @Override
