@@ -242,7 +242,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
             UserSession session = sql.createSession(localUser);
             var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser, LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds), server.keyAgreementManager.ecdsaPrivateKey);
-            var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
+            var refreshToken = azuriomAccessToken;
 
             if (minecraftAccess) {
                 String minecraftAccessToken = SecurityHelper.randomStringToken();
@@ -277,10 +277,23 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public AuthManager.AuthReport refreshAccessToken(String refreshToken, AuthResponse.AuthContext context) {
-        if (!isDatabaseMode) {
+        try {
+            com.azuriom.azauth.model.User azuriomUser = authClient.verify(refreshToken);
+            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+            if (localUser == null) {
+                throw new OAuthAccessTokenExpired("User not found in local database");
+            }
+            UserSession session = sql.createSession(localUser);
+            var newAccessToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser, LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds), server.keyAgreementManager.ecdsaPrivateKey);
+            var newRefreshToken = refreshToken;
+            return AuthManager.AuthReport.ofOAuth(newAccessToken, newRefreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+        } catch (AuthException e) {
+            logger.info("Azuriom token invalid or expired. Asking user to login again.");
+            return null;
+        } catch (Exception e) {
+            logger.error("Error during token refresh", e);
             return null;
         }
-        return sql.refreshAccessToken(refreshToken, context);
     }
 
     @Override
