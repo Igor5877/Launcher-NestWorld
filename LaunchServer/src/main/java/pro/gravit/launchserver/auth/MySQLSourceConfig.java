@@ -87,6 +87,7 @@ public final class MySQLSourceConfig implements AutoCloseable, SQLSourceConfig {
             mysqlSource.setMaintainTimeStats(false);
             mysqlSource.setUseUnbufferedInput(false);
             mysqlSource.setUseReadAheadInput(false);
+            mysqlSource.setAllowPublicKeyRetrieval(true);
             mysqlSource.setUseSSL(useSSL);
             mysqlSource.setVerifyServerCertificate(verifyCertificates);
             // Set credentials
