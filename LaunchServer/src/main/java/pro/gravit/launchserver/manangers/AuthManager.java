@@ -108,7 +108,7 @@ public class AuthManager {
             try {
                 session = provider.getUserSessionByOAuthAccessToken(password1.accessToken);
             } catch (AuthCoreProvider.OAuthAccessTokenExpired oAuthAccessTokenExpired) {
-                throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
+                throw new AuthException(oAuthAccessTokenExpired.getMessage());
             }
             if (session == null) {
                 throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_INVALID);
