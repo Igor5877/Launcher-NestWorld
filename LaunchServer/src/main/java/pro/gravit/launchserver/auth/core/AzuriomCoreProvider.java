@@ -203,7 +203,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             if (!isDatabaseMode) {
                 UserSession session = createOfflineSession(azuriomUser);
                 User user = session.getUser();
-                var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(user, LocalDateTime.now(Clock.systemUTC()).plusSeconds(3600), server.keyAgreementManager.ecdsaPrivateKey);
+                var accessToken = azuriomUser.getAccessToken();
                 var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
 
                 if (minecraftAccess) {
@@ -225,7 +225,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider {
             checkHwidBan(localUser);
 
             UserSession session = sql.createSession(localUser);
-            var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser, LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds), server.keyAgreementManager.ecdsaPrivateKey);
+            var accessToken = azuriomUser.getAccessToken();
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
 
             if (minecraftAccess) {
