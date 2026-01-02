@@ -175,7 +175,14 @@ public class LoginScene extends AbstractScene {
 
     public <T extends WebSocketEvent> void processing(Request<T> request, String text, Consumer<T> onSuccess,
             Consumer<String> onError) {
-        processRequest(text, request, onSuccess, (thr) -> onError.accept(thr.getCause().getMessage()), null);
+        processRequest(text, request, onSuccess, (thr) -> {
+            String message = thr.getCause().getMessage();
+            if ("Invalid token".equals(message) || "auth.expiretoken".equals(message)) {
+                clearPassword();
+                authFlow.reset();
+            }
+            onError.accept(message);
+        }, null);
     }
 
 
