@@ -84,7 +84,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
     @Override
     public User getUserByUUID(UUID uuid) {
         try {
-            return queryUser(queryByUUIDSQL, uuid.toString());
+            return queryUser(queryByUUIDSQL, uuid.toString().replace("-", ""));
         } catch (Exception e) {
             logger.error("SQL error", e);
             return null;
