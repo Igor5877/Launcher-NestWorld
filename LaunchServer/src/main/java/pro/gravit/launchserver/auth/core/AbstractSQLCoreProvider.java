@@ -274,8 +274,13 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
         getSQLConfig().close();
     }
 
+    protected static UUID toUUID(String s) {
+        if(s == null) return null;
+        return UUID.fromString(s.substring(0, 8) + "-" + s.substring(8, 12) + "-" + s.substring(12, 16) + "-" + s.substring(16, 20) + "-" + s.substring(20, 32));
+    }
+
     protected SQLUser constructUser(ResultSet set) throws SQLException {
-        return set.next() ? new SQLUser(UUID.fromString(set.getString(uuidColumn)), set.getString(usernameColumn),
+        return set.next() ? new SQLUser(toUUID(set.getString(uuidColumn)), set.getString(usernameColumn),
                 set.getString(accessTokenColumn), set.getString(serverIDColumn), set.getString(passwordColumn)) : null;
     }
 
