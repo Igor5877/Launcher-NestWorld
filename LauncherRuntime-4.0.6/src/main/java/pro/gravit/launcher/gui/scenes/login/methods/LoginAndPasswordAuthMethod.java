@@ -10,6 +10,7 @@ import pro.gravit.launcher.gui.scenes.login.LoginAuthButtonComponent;
 import pro.gravit.launcher.gui.scenes.login.LoginScene;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launcher.base.request.auth.details.AuthPasswordDetails;
+import pro.gravit.launcher.base.request.auth.password.AuthTokenPassword;
 import pro.gravit.utils.helper.LogHelper;
 
 import java.util.concurrent.CompletableFuture;
@@ -54,20 +55,19 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
 
     @Override
     public CompletableFuture<AuthFlow.LoginAndPasswordResult> auth(AuthPasswordDetails details) {
-        overlay.future = new CompletableFuture<>();
         String login = overlay.login.getText();
-        AuthRequest.AuthPasswordInterface password;
-        if (overlay.password.getText().isEmpty() && overlay.password.getPromptText().equals(application.getTranslation(
-                "runtime.scenes.login.password.saved"))) {
-            password = application.runtimeSettings.password;
-            return CompletableFuture.completedFuture(new AuthFlow.LoginAndPasswordResult(login, password));
-        }
-        return overlay.future;
+        String password = overlay.password.getText();
+
+        return CompletableFuture.supplyAsync(() -> {
+            String azuriomToken = application.authService.authWithAzuriom(login, password);
+            AuthRequest.AuthPasswordInterface tokenPassword = new AuthTokenPassword(azuriomToken);
+            return new AuthFlow.LoginAndPasswordResult(login, tokenPassword);
+        }, application.workers.getService());
     }
 
     @Override
     public void onAuthClicked() {
-        overlay.future.complete(overlay.getResult());
+        // This method is now handled by the CompletableFuture in `auth`
     }
 
     @Override
