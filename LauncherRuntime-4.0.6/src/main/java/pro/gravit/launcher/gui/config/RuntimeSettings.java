@@ -20,6 +20,8 @@ public class RuntimeSettings extends UserSettings {
     public static final LAUNCHER_LOCALE DEFAULT_LOCALE = LAUNCHER_LOCALE.UKRAINIAN;
     public transient Path updatesDir;
     @LauncherNetworkAPI
+    public String azuriomUrl;
+    @LauncherNetworkAPI
     public String login;
     @LauncherNetworkAPI
     public AuthRequest.AuthPasswordInterface password;

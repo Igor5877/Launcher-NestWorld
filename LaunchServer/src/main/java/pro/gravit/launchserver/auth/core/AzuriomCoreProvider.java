@@ -12,6 +12,7 @@ import pro.gravit.launcher.base.request.auth.details.AuthTotpDetails;
 import pro.gravit.launcher.base.request.auth.password.Auth2FAPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthTOTPPassword;
+import pro.gravit.launcher.base.request.auth.password.AuthTokenPassword;
 import pro.gravit.launchserver.LaunchServer;
 import pro.gravit.launchserver.auth.AuthProviderPair;
 import pro.gravit.launchserver.auth.core.interfaces.UserHardware;
@@ -34,6 +35,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupportHardware, AuthSupportExtendedCheckServer {
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
+    public String azuriomTokenTable;
+    public String tokenColumn;
+    public String userColumn;
+    public String expiresColumn;
     public MySQLCoreProvider sql;
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
@@ -149,7 +154,6 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 return null;
             }
 
-            enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
 
             return sql.createSession(localUser);
@@ -164,93 +168,60 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public AuthManager.AuthReport authorize(String login, AuthResponse.AuthContext context, AuthRequest.AuthPasswordInterface password, boolean minecraftAccess) throws IOException, pro.gravit.launchserver.auth.AuthException {
-        if (authClient == null) {
-            throw new pro.gravit.launchserver.auth.AuthException("Azuriom provider is not configured");
+        if (!(password instanceof AuthTokenPassword)) {
+            throw new pro.gravit.launchserver.auth.AuthException("Unsupported password type. Use AuthTokenPassword.");
         }
 
-        String plainPassword;
-        String totpCode = null;
+        String token = ((AuthTokenPassword) password).token;
 
-        if (password instanceof Auth2FAPassword auth2fa) {
-            if (!(auth2fa.firstPassword instanceof AuthPlainPassword)) {
-                throw new pro.gravit.launchserver.auth.AuthException("Unsupported password type for 2FA");
-            }
-            plainPassword = ((AuthPlainPassword) auth2fa.firstPassword).password;
-            if (auth2fa.secondPassword instanceof AuthTOTPPassword totp) {
-                totpCode = totp.totp;
-            }
-        } else if (password instanceof AuthPlainPassword authPlain) {
-            plainPassword = authPlain.password;
-        } else {
-            throw new pro.gravit.launchserver.auth.AuthException("Unsupported password type");
+        if (!isDatabaseMode) {
+            throw new pro.gravit.launchserver.auth.AuthException("Database mode is required for token authentication.");
         }
 
-        try {
-            com.azuriom.azauth.AuthResult<com.azuriom.azauth.model.User> result = authClient.login(login, plainPassword);
-
-            if (result.isPending() && result.asPending().require2fa()) {
-                if (totpCode == null) {
-                    throw pro.gravit.launchserver.auth.AuthException.need2FA();
-                }
-                result = authClient.login(login, plainPassword, totpCode);
-            }
-
-            if (!result.isSuccess()) {
-                throw new pro.gravit.launchserver.auth.AuthException("Authentication failed: " + result.toString());
-            }
-
-            com.azuriom.azauth.model.User azuriomUser = result.getSuccessResult();
-
-            if (!isDatabaseMode) {
-                UserSession session = createOfflineSession(azuriomUser);
-                User user = session.getUser();
-                var accessToken = azuriomUser.getAccessToken();
-                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
-
-                if (minecraftAccess) {
-                    String minecraftAccessToken = SecurityHelper.randomStringToken();
-                    return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(3600), session);
-                } else {
-                    return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(3600), session);
+        try (java.sql.Connection connection = sql.mySQLHolder.getConnection()) {
+            UUID userUuid;
+            try (java.sql.PreparedStatement stmt = connection.prepareStatement("SELECT " + userColumn + " FROM " + azuriomTokenTable + " WHERE " + tokenColumn + " = ? AND (" + expiresColumn + " IS NULL OR " + expiresColumn + " > NOW())")) {
+                stmt.setString(1, token);
+                try (java.sql.ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        userUuid = UUID.fromString(rs.getString(1));
+                    } else {
+                        userUuid = null;
+                    }
                 }
             }
 
-            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+            if (userUuid == null) {
+                throw new pro.gravit.launchserver.auth.AuthException("Invalid or expired Azuriom token.");
+            }
+
+            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(userUuid);
 
             if (localUser == null) {
-                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.", 
-                    azuriomUser.getUsername(), azuriomUser.getUuid());
+                logger.warn("User with UUID {} authenticated via Azuriom token but not found in local database.", userUuid);
                 throw new pro.gravit.launchserver.auth.AuthException("User not found in local database");
             }
 
-            enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
 
             UserSession session = sql.createSession(localUser);
-            var accessToken = azuriomUser.getAccessToken();
+            // We use the provided token as the access token. The refresh token logic might need reconsideration
+            // based on whether Azuriom provides one or if we generate a separate one for LaunchServer sessions.
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
 
             if (minecraftAccess) {
                 String minecraftAccessToken = SecurityHelper.randomStringToken();
                 sql.updateAuth(localUser, minecraftAccessToken);
-                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, token, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             } else {
-                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+                return AuthManager.AuthReport.ofOAuth(token, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             }
 
-        } catch (AuthException e) {
+        } catch (Exception e) {
             throw new pro.gravit.launchserver.auth.AuthException(e.getMessage(), e);
         }
     }
 
-    private void enrichUserWithAzuriomData(MySQLCoreProvider.MySQLUser localUser, com.azuriom.azauth.model.User azuriomUser) {
-        if (localUser.getPermissions() != null && azuriomUser.getRole() != null && azuriomUser.getRole().getName() != null) {
-            String azuriomRole = azuriomUser.getRole().getName();
-            if (!localUser.getPermissions().hasRole(azuriomRole)) {
-                localUser.getPermissions().addRole(azuriomRole);
-            }
-        }
-    }
 
     private void checkHwidBan(MySQLCoreProvider.MySQLUser localUser) throws pro.gravit.launchserver.auth.AuthException {
         if (isDatabaseMode && localUser.hwidId > 0) {

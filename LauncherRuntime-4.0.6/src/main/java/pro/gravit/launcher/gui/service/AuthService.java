@@ -1,5 +1,7 @@
 package pro.gravit.launcher.gui.service;
 
+import com.azuriom.azauth.AuthClient;
+import com.azuriom.azauth.exception.AuthException;
 import pro.gravit.launcher.base.Launcher;
 import pro.gravit.launcher.base.LauncherConfig;
 import pro.gravit.launcher.gui.JavaFXApplication;
@@ -18,10 +20,41 @@ public class AuthService {
     private final LauncherConfig config = Launcher.getConfig();
     private final JavaFXApplication application;
     private AuthRequestEvent rawAuthResult;
+    private AuthClient authClient;
     private GetAvailabilityAuthRequestEvent.AuthAvailability authAvailability;
 
     public AuthService(JavaFXApplication application) {
         this.application = application;
+        // We will initialize authClient when the Azuriom URL is available,
+        // likely from a config file or runtime settings.
+    }
+
+    private void ensureAuthClientInitialized() {
+        if (authClient == null) {
+            // This is a placeholder. The URL should be fetched from your application's configuration.
+            String azuriomUrl = application.runtimeSettings.azuriomUrl;
+            if (azuriomUrl == null || azuriomUrl.isEmpty()) {
+                throw new IllegalStateException("Azuriom URL is not configured.");
+            }
+            this.authClient = new AuthClient(azuriomUrl);
+        }
+    }
+
+    public String authWithAzuriom(String login, String password) throws AuthException {
+        ensureAuthClientInitialized();
+        com.azuriom.azauth.AuthResult<com.azuriom.azauth.model.User> result = authClient.login(login, password);
+
+        if (result.isPending() && result.asPending().require2fa()) {
+            // This is a simplified approach. A real implementation would show a dialog.
+            String totpCode = application.loginScene.request2FACode();
+            result = authClient.login(login, password, totpCode);
+        }
+
+        if (!result.isSuccess()) {
+            throw new AuthException("Authentication failed: " + result.toString());
+        }
+
+        return result.getSuccessResult().getAccessToken();
     }
 
     public AuthRequest.AuthPasswordInterface makePassword(String plainPassword) {

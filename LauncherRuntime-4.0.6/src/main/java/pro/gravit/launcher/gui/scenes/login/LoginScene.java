@@ -277,6 +277,32 @@ public class LoginScene extends AbstractScene {
         return authFlow;
     }
 
+    public String request2FACode() {
+        // This is a synchronous call from a non-FX thread, so we need to use Platform.runLater
+        // and a latch to wait for the result. This is not ideal, but it's the simplest way
+        // to integrate with the existing synchronous auth flow.
+        final String[] result = new String[1];
+        final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+
+        Platform.runLater(() -> {
+            TextInputDialog dialog = new TextInputDialog();
+            dialog.setTitle("Two-Factor Authentication");
+            dialog.setHeaderText("Enter your 2FA code");
+            dialog.setContentText("Code:");
+
+            Optional<String> dialogResult = dialog.showAndWait();
+            dialogResult.ifPresent(code -> result[0] = code);
+            latch.countDown();
+        });
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return result[0];
+    }
+
     private static class AuthAvailabilityStringConverter extends StringConverter<GetAvailabilityAuthRequestEvent.AuthAvailability> {
         @Override
         public String toString(GetAvailabilityAuthRequestEvent.AuthAvailability object) {
