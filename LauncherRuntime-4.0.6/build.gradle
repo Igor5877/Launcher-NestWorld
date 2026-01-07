@@ -61,6 +61,7 @@ repositories {
 }
 
 dependencies {
+    implementation project(':LauncherAPI')
     implementation 'com.azuriom:azauth:1.1.0'
     implementation "pro.gravit.launcher:launcher-core:5.6.9"
     implementation "pro.gravit.launcher:launcher-ws-api:5.6.9"

@@ -13,9 +13,12 @@ import pro.gravit.launcher.base.request.auth.details.AuthWebViewDetails;
 import pro.gravit.launcher.base.request.auth.password.Auth2FAPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthMultiPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
+import pro.gravit.launcher.base.Launcher;
+import pro.gravit.launcher.base.request.auth.password.AuthAESPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthTokenPassword;
 import pro.gravit.launcher.gui.scenes.login.methods.*;
+import pro.gravit.utils.helper.SecurityHelper;
 import pro.gravit.utils.helper.LogHelper;
 
 import java.util.ArrayList;
@@ -160,9 +163,14 @@ public class AuthFlow {
         LogHelper.dev("Auth with %s password ***** authId %s", login, authId);
 
         // Azuriom auth logic
-        if (authId.features.contains("AZURIOM_TOKEN_AUTH") && password instanceof AuthPlainPassword) {
+        if (authId.features.contains("AZURIOM_TOKEN_AUTH") && (password instanceof AuthAESPassword || password instanceof AuthPlainPassword)) {
             try {
-                String plainPassword = ((AuthPlainPassword) password).password;
+                String plainPassword;
+                if(password instanceof AuthAESPassword aesPassword) {
+                    plainPassword = new String(SecurityHelper.decrypt(Launcher.getConfig().passwordEncryptKey, aesPassword.password));
+                } else {
+                    plainPassword = ((AuthPlainPassword) password).password;
+                }
                 String azuriomToken = application.authService.authWithAzuriom(login, plainPassword);
                 password = new AuthTokenPassword(azuriomToken);
             } catch (Exception e) {
