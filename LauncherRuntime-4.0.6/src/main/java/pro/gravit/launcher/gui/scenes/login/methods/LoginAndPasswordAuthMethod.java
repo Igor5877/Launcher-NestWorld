@@ -56,22 +56,18 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
     @Override
     public CompletableFuture<AuthFlow.LoginAndPasswordResult> auth(AuthPasswordDetails details) {
         overlay.future = new CompletableFuture<>();
+        String login = overlay.login.getText();
+        if (overlay.password.getText().isEmpty() && overlay.password.getPromptText().equals(application.getTranslation(
+                "runtime.scenes.login.password.saved"))) {
+            AuthRequest.AuthPasswordInterface password = application.runtimeSettings.password;
+            return CompletableFuture.completedFuture(new AuthFlow.LoginAndPasswordResult(login, password));
+        }
         return overlay.future;
     }
 
     @Override
     public void onAuthClicked() {
-        String login = overlay.login.getText();
-        String password = overlay.password.getText();
-        application.workers.submit(() -> {
-            try {
-                String azuriomToken = application.authService.authWithAzuriom(login, password);
-                AuthRequest.AuthPasswordInterface tokenPassword = new AuthTokenPassword(azuriomToken);
-                overlay.future.complete(new AuthFlow.LoginAndPasswordResult(login, tokenPassword));
-            } catch (Exception e) {
-                overlay.future.completeExceptionally(e);
-            }
-        });
+        overlay.future.complete(overlay.getResult());
     }
 
     @Override
