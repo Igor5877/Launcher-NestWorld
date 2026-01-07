@@ -59,10 +59,14 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
         String password = overlay.password.getText();
 
         return CompletableFuture.supplyAsync(() -> {
-            String azuriomToken = application.authService.authWithAzuriom(login, password);
-            AuthRequest.AuthPasswordInterface tokenPassword = new AuthTokenPassword(azuriomToken);
-            return new AuthFlow.LoginAndPasswordResult(login, tokenPassword);
-        }, application.workers.getService());
+            try {
+                String azuriomToken = application.authService.authWithAzuriom(login, password);
+                AuthRequest.AuthPasswordInterface tokenPassword = new AuthTokenPassword(azuriomToken);
+                return new AuthFlow.LoginAndPasswordResult(login, tokenPassword);
+            } catch (Exception e) {
+                throw new java.util.concurrent.CompletionException(e);
+            }
+        }, application.workers);
     }
 
     @Override

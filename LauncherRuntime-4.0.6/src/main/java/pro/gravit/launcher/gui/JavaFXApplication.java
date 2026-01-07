@@ -59,6 +59,7 @@ public class JavaFXApplication extends Application {
     public RuntimeSettings runtimeSettings;
     public RequestService service;
     public GuiObjectsContainer gui;
+    public pro.gravit.launcher.gui.scenes.login.LoginScene loginScene;
     public AuthService authService;
     public ProfilesService profilesService;
     public LaunchService launchService;
@@ -190,6 +191,7 @@ public class JavaFXApplication extends Application {
             // Overlay loading
             gui = new GuiObjectsContainer(this);
             gui.init();
+            loginScene = gui.loginScene;
             //
             mainStage.setScene(gui.loginScene, true);
             gui.background.init();
