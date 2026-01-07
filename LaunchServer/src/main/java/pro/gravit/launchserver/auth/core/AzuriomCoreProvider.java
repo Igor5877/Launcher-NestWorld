@@ -32,9 +32,12 @@ import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import java.util.ArrayList;
+
 public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupportHardware, AuthSupportExtendedCheckServer {
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
+    public List<String> features = new ArrayList<>();
     public String azuriomTokenTable;
     public String tokenColumn;
     public String userColumn;
@@ -86,6 +89,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     @Override
     public void init(LaunchServer server, AuthProviderPair pair) {
         super.init(server, pair);
+        features.add("AZURIOM_TOKEN_AUTH");
         if (azuriomUrl == null || azuriomUrl.isEmpty()) {
             logger.error("azuriomUrl is not configured! Azuriom provider cannot work.");
             return;

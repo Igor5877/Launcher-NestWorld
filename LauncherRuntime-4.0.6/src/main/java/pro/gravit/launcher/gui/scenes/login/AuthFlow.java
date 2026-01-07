@@ -160,7 +160,7 @@ public class AuthFlow {
         LogHelper.dev("Auth with %s password ***** authId %s", login, authId);
 
         // Azuriom auth logic
-        if (password instanceof AuthPlainPassword) {
+        if (authId.features.contains("AZURIOM_TOKEN_AUTH") && password instanceof AuthPlainPassword) {
             try {
                 String plainPassword = ((AuthPlainPassword) password).password;
                 String azuriomToken = application.authService.authWithAzuriom(login, plainPassword);
