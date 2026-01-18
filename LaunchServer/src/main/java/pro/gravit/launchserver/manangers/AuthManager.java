@@ -105,9 +105,19 @@ public class AuthManager {
         provider.verifyAuth(context);
         if (password instanceof AuthOAuthPassword password1) {
             try {
-                return provider.reportFromOAuth(password1.accessToken, context);
+                AuthReport result = provider.reportFromOAuth(password1.accessToken, context);
+                if (result == null || result.session() == null || result.session().getUser() == null) {
+                    throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_INVALID);
+                }
+                User user = result.session().getUser();
+                context.client.coreObject = user;
+                context.client.sessionObject = result.session();
+                internalAuth(context.client, context.authType, context.pair, user.getUsername(), user.getUUID(), user.getPermissions(), result.isUsingOAuth());
+                return result;
             } catch (IOException e) {
-                throw new AuthException(e.getMessage());
+                if (e instanceof AuthException authException) throw authException;
+                logger.error(e);
+                throw new AuthException("Internal Auth Error");
             }
         }
         String login = context.login;
