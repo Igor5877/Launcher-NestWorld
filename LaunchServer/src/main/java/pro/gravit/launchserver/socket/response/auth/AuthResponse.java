@@ -48,8 +48,7 @@ public class AuthResponse extends SimpleResponse {
             result.permissions = context.report.session() != null ? (context.report.session().getUser() != null ? context.report.session().getUser().getPermissions() : null) : null;
             if (context.report.isUsingOAuth()) {
                 result.oauth = new AuthRequestEvent.OAuthRequestEvent(context.report.oauthAccessToken(), context.report.oauthRefreshToken(), context.report.oauthExpire());
-            }
-            if (clientData.sessionObject instanceof AzuriomCoreProvider.AzuriomUserSession session) {
+            } else if (context.report.session() instanceof AzuriomCoreProvider.AzuriomUserSession session) {
                 result.oauth = new AuthRequestEvent.OAuthRequestEvent(
                         session.oauthAccessToken(),
                         session.oauthRefreshToken(),
