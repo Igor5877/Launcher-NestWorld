@@ -180,10 +180,9 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
 
     public static synchronized RequestRestoreReport restore(boolean needUserInfo, boolean refreshOnly, boolean noRefresh) throws Exception {
         boolean refreshed = false;
-        RestoreRequest request;
         if (oauth != null) {
-            if(isTokenExpired() || oauth.accessToken == null) {
-                if(noRefresh) {
+            if (isTokenExpired() || oauth.accessToken == null) {
+                if (noRefresh) {
                     oauth = null;
                 } else {
                     RefreshTokenRequest refreshRequest = new RefreshTokenRequest(authId, oauth.refreshToken);
@@ -193,12 +192,38 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
                 }
             }
         }
+
+        if (oauth != null) {
+            pro.gravit.launcher.base.request.auth.AuthRequest authRequest = new pro.gravit.launcher.base.request.auth.AuthRequest(
+                    null, new pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword(oauth.accessToken), authId,
+                    false, pro.gravit.launcher.base.request.auth.AuthRequest.ConnectTypes.CLIENT);
+            try {
+                AuthRequestEvent authEvent = authRequest.request();
+                setOAuth(authId, authEvent.oauth);
+                CurrentUserRequestEvent.UserInfo userInfo = null;
+                if(authEvent.playerProfile != null) {
+                    userInfo = new CurrentUserRequestEvent.UserInfo();
+                    userInfo.playerProfile = authEvent.playerProfile;
+                    userInfo.permissions = authEvent.permissions;
+                }
+                return new RequestRestoreReport(refreshed, null, userInfo);
+            } catch (Exception e) {
+                if (Objects.equals(e.getMessage(), AuthRequestEvent.OAUTH_TOKEN_INVALID) || Objects.equals(e.getMessage(), AuthRequestEvent.OAUTH_TOKEN_EXPIRE)) {
+                    // Normal expired
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        // Fallback to old restore request
+        RestoreRequest request;
         if (oauth != null) {
             request = new RestoreRequest(authId, oauth.accessToken, refreshOnly ? getExpiredExtendedTokens() : getStringExtendedTokens(), needUserInfo);
         } else {
             request = new RestoreRequest(authId, null, refreshOnly ? getExpiredExtendedTokens() : getStringExtendedTokens(), false);
         }
-        if(refreshOnly && (request.extended == null || request.extended.isEmpty())) {
+        if (refreshOnly && (request.extended == null || request.extended.isEmpty())) {
             return new RequestRestoreReport(refreshed, null, null);
         }
         RestoreRequestEvent event = request.request();

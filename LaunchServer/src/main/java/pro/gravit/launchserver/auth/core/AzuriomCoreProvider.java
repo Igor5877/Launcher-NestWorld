@@ -128,6 +128,53 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), new ClientPermissions());
         return new OfflineUserSession(user);
     }
+    
+    @Override
+    public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
+        try {
+            com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
+
+            boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
+
+            if (!isDatabaseMode) {
+                UserSession session = createOfflineSession(azuriomUser);
+                User user = session.getUser();
+                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
+
+                if (minecraftAccess) {
+                    String minecraftAccessToken = SecurityHelper.randomStringToken();
+                    return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(3600), session);
+                } else {
+                    return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(3600), session);
+                }
+            }
+
+            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+
+            if (localUser == null) {
+                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.",
+                        azuriomUser.getUsername(), azuriomUser.getUuid());
+                throw new AuthException("User not found in local database");
+            }
+
+            enrichUserWithAzuriomData(localUser, azuriomUser);
+            checkHwidBan(localUser);
+
+            UserSession session = sql.createSession(localUser);
+            var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
+            
+            if (minecraftAccess) {
+                String minecraftAccessToken = SecurityHelper.randomStringToken();
+                sql.updateAuth(localUser, minecraftAccessToken);
+                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+            } else {
+                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+            }
+
+        } catch (AuthException | pro.gravit.launchserver.auth.AuthException e) {
+            throw new IOException(e);
+        }
+    }
 
     @Override
     public UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired {

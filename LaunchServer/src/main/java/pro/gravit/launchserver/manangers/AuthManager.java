@@ -104,23 +104,21 @@ public class AuthManager {
         AuthCoreProvider provider = context.pair.core;
         provider.verifyAuth(context);
         if (password instanceof AuthOAuthPassword password1) {
-            UserSession session;
             try {
-                session = provider.getUserSessionByOAuthAccessToken(password1.accessToken);
-            } catch (AuthCoreProvider.OAuthAccessTokenExpired oAuthAccessTokenExpired) {
-                throw new AuthException(oAuthAccessTokenExpired.getMessage());
+                AuthReport result = provider.reportFromOAuth(password1.accessToken, context);
+                if (result == null || result.session() == null || result.session().getUser() == null) {
+                    throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_INVALID);
+                }
+                User user = result.session().getUser();
+                context.client.coreObject = user;
+                context.client.sessionObject = result.session();
+                internalAuth(context.client, context.authType, context.pair, user.getUsername(), user.getUUID(), user.getPermissions(), result.isUsingOAuth());
+                return result;
+            } catch (IOException e) {
+                if (e instanceof AuthException authException) throw authException;
+                logger.error(e);
+                throw new AuthException("Internal Auth Error");
             }
-            if (session == null) {
-                throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_INVALID);
-            }
-            User user = session.getUser();
-            context.client.coreObject = user;
-            context.client.sessionObject = session;
-            internalAuth(context.client, context.authType, context.pair, user.getUsername(), user.getUUID(), user.getPermissions(), true);
-            if (context.authType == AuthResponse.ConnectTypes.CLIENT && server.config.protectHandler.allowGetAccessToken(context)) {
-                return AuthReport.ofMinecraftAccessToken(session.getMinecraftAccessToken(), session);
-            }
-            return AuthReport.ofMinecraftAccessToken(null, session);
         }
         String login = context.login;
         try {
