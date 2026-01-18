@@ -14,7 +14,6 @@ import pro.gravit.launchserver.manangers.AuthManager;
 import pro.gravit.launchserver.socket.Client;
 import pro.gravit.launchserver.socket.response.SimpleResponse;
 import pro.gravit.launchserver.socket.response.update.LauncherResponse;
-import pro.gravit.launchserver.auth.core.AzuriomCoreProvider;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -95,14 +94,7 @@ public class RestoreResponse extends SimpleResponse {
                 }
             });
         }
-        AuthRequestEvent.OAuthRequestEvent oauth = null;
-        if (client.isAuth && client.sessionObject instanceof AzuriomCoreProvider.AzuriomUserSession session) {
-            oauth = new AuthRequestEvent.OAuthRequestEvent(
-                    session.oauthAccessToken(),
-                    session.oauthRefreshToken(),
-                    session.oauthExpire()
-            );
-        }
+        AuthRequestEvent.OAuthRequestEvent oauth = new AuthRequestEvent.OAuthRequestEvent(accessToken, null, 0);
         if (needUserInfo && client.isAuth) {
             sendResult(new RestoreRequestEvent(CurrentUserResponse.collectUserInfoFromClient(server, client), invalidTokens, oauth));
         } else {

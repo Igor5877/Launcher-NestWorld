@@ -78,31 +78,6 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         }
     }
 
-    public record AzuriomUserSession(User user, String oauthAccessToken, String oauthRefreshToken, long oauthExpire) implements UserSession {
-        @Override
-        public String getID() {
-            return "azuriom-" + user.getUUID().toString();
-        }
-
-        @Override
-        public User getUser() {
-            return user;
-        }
-
-        @Override
-        public String getMinecraftAccessToken() {
-            if (user instanceof AbstractSQLCoreProvider.SQLUser sqlUser) {
-                return sqlUser.getAccessToken();
-            }
-            return null;
-        }
-
-        @Override
-        public long getExpireIn() {
-            return 0;
-        }
-    }
-
     @Override
     public void init(LaunchServer server, AuthProviderPair pair) {
         super.init(server, pair);
@@ -163,9 +138,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
 
             if (!isDatabaseMode) {
-                User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), new ClientPermissions());
-                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
-                return new AzuriomUserSession(user, accessToken, refreshToken, SECONDS.toMillis(3600));
+                return createOfflineSession(azuriomUser);
             }
 
             MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
@@ -179,8 +152,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
 
-            var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
-            return new AzuriomUserSession(localUser, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds));
+            return sql.createSession(localUser);
 
         } catch (AuthException e) {
             throw new OAuthAccessTokenExpired(e.getMessage());
@@ -230,11 +202,10 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             com.azuriom.azauth.model.User azuriomUser = result.getSuccessResult();
 
             if (!isDatabaseMode) {
-                User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), new ClientPermissions());
+                UserSession session = createOfflineSession(azuriomUser);
+                User user = session.getUser();
                 var accessToken = azuriomUser.getAccessToken();
-                // This is a mock refresh token, as Azuriom does not provide one.
                 var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
-                var session = new AzuriomUserSession(user, accessToken, refreshToken, SECONDS.toMillis(3600));
 
                 if (minecraftAccess) {
                     String minecraftAccessToken = SecurityHelper.randomStringToken();
@@ -255,10 +226,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
 
+            UserSession session = sql.createSession(localUser);
             var accessToken = azuriomUser.getAccessToken();
-            // This is a mock refresh token, as Azuriom does not provide one.
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
-            UserSession session = new AzuriomUserSession(localUser, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds));
 
             if (minecraftAccess) {
                 String minecraftAccessToken = SecurityHelper.randomStringToken();

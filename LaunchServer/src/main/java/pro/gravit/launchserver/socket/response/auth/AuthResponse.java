@@ -7,7 +7,6 @@ import pro.gravit.launcher.base.events.request.AuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launchserver.auth.AuthException;
 import pro.gravit.launchserver.auth.AuthProviderPair;
-import pro.gravit.launchserver.auth.core.AzuriomCoreProvider;
 import pro.gravit.launchserver.manangers.AuthManager;
 import pro.gravit.launchserver.socket.Client;
 import pro.gravit.launchserver.socket.response.SimpleResponse;
@@ -48,12 +47,6 @@ public class AuthResponse extends SimpleResponse {
             result.permissions = context.report.session() != null ? (context.report.session().getUser() != null ? context.report.session().getUser().getPermissions() : null) : null;
             if (context.report.isUsingOAuth()) {
                 result.oauth = new AuthRequestEvent.OAuthRequestEvent(context.report.oauthAccessToken(), context.report.oauthRefreshToken(), context.report.oauthExpire());
-            } else if (context.report.session() instanceof AzuriomCoreProvider.AzuriomUserSession session) {
-                result.oauth = new AuthRequestEvent.OAuthRequestEvent(
-                        session.oauthAccessToken(),
-                        session.oauthRefreshToken(),
-                        session.oauthExpire()
-                );
             }
             if (context.report.minecraftAccessToken() != null) {
                 result.accessToken = context.report.minecraftAccessToken();
