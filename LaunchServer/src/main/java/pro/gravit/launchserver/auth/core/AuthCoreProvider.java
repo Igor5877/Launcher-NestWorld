@@ -71,6 +71,10 @@ public abstract class AuthCoreProvider implements AutoCloseable, Reconfigurable 
 
     public abstract UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired;
 
+    public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
     public abstract AuthManager.AuthReport refreshAccessToken(String refreshToken, AuthResponse.AuthContext context /* may be null */);
 
     public void verifyAuth(AuthResponse.AuthContext context) throws AuthException {

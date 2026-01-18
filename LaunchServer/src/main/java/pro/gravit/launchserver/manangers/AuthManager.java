@@ -104,23 +104,11 @@ public class AuthManager {
         AuthCoreProvider provider = context.pair.core;
         provider.verifyAuth(context);
         if (password instanceof AuthOAuthPassword password1) {
-            UserSession session;
             try {
-                session = provider.getUserSessionByOAuthAccessToken(password1.accessToken);
-            } catch (AuthCoreProvider.OAuthAccessTokenExpired oAuthAccessTokenExpired) {
-                throw new AuthException(oAuthAccessTokenExpired.getMessage());
+                return provider.reportFromOAuth(password1.accessToken, context);
+            } catch (IOException e) {
+                throw new AuthException(e.getMessage());
             }
-            if (session == null) {
-                throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_INVALID);
-            }
-            User user = session.getUser();
-            context.client.coreObject = user;
-            context.client.sessionObject = session;
-            internalAuth(context.client, context.authType, context.pair, user.getUsername(), user.getUUID(), user.getPermissions(), true);
-            if (context.authType == AuthResponse.ConnectTypes.CLIENT && server.config.protectHandler.allowGetAccessToken(context)) {
-                return AuthReport.ofOAuthWithMinecraft(session.getMinecraftAccessToken(), password1.accessToken, null, 0, session);
-            }
-            return AuthReport.ofOAuth(password1.accessToken, null, 0, session);
         }
         String login = context.login;
         try {
