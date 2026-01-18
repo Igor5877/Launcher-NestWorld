@@ -118,9 +118,9 @@ public class AuthManager {
             context.client.sessionObject = session;
             internalAuth(context.client, context.authType, context.pair, user.getUsername(), user.getUUID(), user.getPermissions(), true);
             if (context.authType == AuthResponse.ConnectTypes.CLIENT && server.config.protectHandler.allowGetAccessToken(context)) {
-                return AuthReport.ofMinecraftAccessToken(session.getMinecraftAccessToken(), session);
+                return AuthReport.ofOAuthWithMinecraft(session.getMinecraftAccessToken(), password1.accessToken, null, 0, session);
             }
-            return AuthReport.ofMinecraftAccessToken(null, session);
+            return AuthReport.ofOAuth(password1.accessToken, null, 0, session);
         }
         String login = context.login;
         try {

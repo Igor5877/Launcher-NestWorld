@@ -94,13 +94,10 @@ public class RestoreResponse extends SimpleResponse {
                 }
             });
         }
-        AuthRequestEvent.OAuthRequestEvent oauth = new AuthRequestEvent.OAuthRequestEvent(accessToken, null, 0);
         if (needUserInfo && client.isAuth) {
-            sendResult(new RestoreRequestEvent(CurrentUserResponse.collectUserInfoFromClient(server, client), invalidTokens, oauth));
+            sendResult(new RestoreRequestEvent(CurrentUserResponse.collectUserInfoFromClient(server, client), invalidTokens));
         } else {
-            RestoreRequestEvent event = new RestoreRequestEvent(invalidTokens);
-            event.oauth = oauth;
-            sendResult(event);
+            sendResult(new RestoreRequestEvent(invalidTokens));
         }
     }
 
