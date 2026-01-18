@@ -134,11 +134,19 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         try {
             com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
 
+            boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
+
             if (!isDatabaseMode) {
                 UserSession session = createOfflineSession(azuriomUser);
                 User user = session.getUser();
                 var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
-                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(3600), session);
+
+                if (minecraftAccess) {
+                    String minecraftAccessToken = SecurityHelper.randomStringToken();
+                    return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(3600), session);
+                } else {
+                    return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(3600), session);
+                }
             }
 
             MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
@@ -154,7 +162,14 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
             UserSession session = sql.createSession(localUser);
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
-            return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+
+            if (minecraftAccess) {
+                String minecraftAccessToken = SecurityHelper.randomStringToken();
+                sql.updateAuth(localUser, minecraftAccessToken);
+                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+            } else {
+                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+            }
 
         } catch (AuthException | pro.gravit.launchserver.auth.AuthException e) {
             throw new IOException(e);
