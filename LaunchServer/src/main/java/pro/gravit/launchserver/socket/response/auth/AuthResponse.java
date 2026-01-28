@@ -39,8 +39,8 @@ public class AuthResponse extends SimpleResponse {
                 return;
             }
             AuthContext context = server.authManager.makeAuthContext(clientData, authType, pair, login, client, ip);
-            server.authManager.check(context);
             password = server.authManager.decryptPassword(password);
+            server.authManager.check(context, password);
             server.authHookManager.preHook.hook(context, clientData);
             context.report = server.authManager.auth(context, password);
             server.authHookManager.postHook.hook(context, clientData);
