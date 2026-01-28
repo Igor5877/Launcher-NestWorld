@@ -194,24 +194,31 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
         }
 
         if (oauth != null) {
-            pro.gravit.launcher.base.request.auth.AuthRequest authRequest = new pro.gravit.launcher.base.request.auth.AuthRequest(
-                    null, new pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword(oauth.accessToken), authId,
-                    false, pro.gravit.launcher.base.request.auth.AuthRequest.ConnectTypes.CLIENT);
-            try {
-                AuthRequestEvent authEvent = authRequest.request();
-                setOAuth(authId, authEvent.oauth);
-                CurrentUserRequestEvent.UserInfo userInfo = null;
-                if(authEvent.playerProfile != null) {
-                    userInfo = new CurrentUserRequestEvent.UserInfo();
-                    userInfo.playerProfile = authEvent.playerProfile;
-                    userInfo.permissions = authEvent.permissions;
-                }
-                return new RequestRestoreReport(refreshed, null, userInfo);
-            } catch (Exception e) {
-                if (Objects.equals(e.getMessage(), AuthRequestEvent.OAUTH_TOKEN_INVALID) || Objects.equals(e.getMessage(), AuthRequestEvent.OAUTH_TOKEN_EXPIRE)) {
-                    // Normal expired
-                } else {
-                    throw e;
+            if (refreshOnly && !refreshed && getExpiredExtendedTokens().isEmpty()) {
+                return new RequestRestoreReport(refreshed, null, null);
+            }
+            if (refreshed || !refreshOnly) {
+                pro.gravit.launcher.base.request.auth.AuthRequest authRequest = new pro.gravit.launcher.base.request.auth.AuthRequest(
+                        null, new pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword(oauth.accessToken), authId,
+                        false, pro.gravit.launcher.base.request.auth.AuthRequest.ConnectTypes.CLIENT);
+                try {
+                    AuthRequestEvent authEvent = authRequest.request();
+                    setOAuth(authId, authEvent.oauth);
+                    CurrentUserRequestEvent.UserInfo userInfo = null;
+                    if (authEvent.playerProfile != null) {
+                        userInfo = new CurrentUserRequestEvent.UserInfo();
+                        userInfo.playerProfile = authEvent.playerProfile;
+                        userInfo.permissions = authEvent.permissions;
+                    }
+                    if (getExpiredExtendedTokens().isEmpty()) {
+                        return new RequestRestoreReport(refreshed, null, userInfo);
+                    }
+                } catch (Exception e) {
+                    if (Objects.equals(e.getMessage(), AuthRequestEvent.OAUTH_TOKEN_INVALID) || Objects.equals(e.getMessage(), AuthRequestEvent.OAUTH_TOKEN_EXPIRE)) {
+                        // Normal expired
+                    } else {
+                        throw e;
+                    }
                 }
             }
         }

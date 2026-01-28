@@ -87,11 +87,12 @@ public abstract class AuthCoreProvider implements AutoCloseable, Reconfigurable 
             throw new AuthException("Internal Auth error: UserSession is broken");
         }
         boolean minecraftAccess = context != null && server.config.protectHandler.allowGetAccessToken(context);
+        long expire = 3600 * 1000L;
         if (minecraftAccess) {
             String minecraftAccessToken = SecurityHelper.randomStringToken();
-            return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, null, 0, session);
+            return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, null, expire, session);
         } else {
-            return AuthManager.AuthReport.ofOAuth(accessToken, null, 0, session);
+            return AuthManager.AuthReport.ofOAuth(accessToken, null, expire, session);
         }
     }
 
