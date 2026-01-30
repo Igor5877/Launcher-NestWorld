@@ -171,8 +171,10 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             }
 
-        } catch (AuthException | pro.gravit.launchserver.auth.AuthException e) {
-            throw new IOException(e);
+        } catch (AuthException e) {
+            throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
+        } catch (pro.gravit.launchserver.auth.AuthException e) {
+            throw e;
         }
     }
 
