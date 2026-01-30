@@ -1,7 +1,5 @@
 package pro.gravit.launcher.client;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import pro.gravit.launcher.base.events.request.CrashReportRequestEvent;
@@ -24,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class CrashReportManager {
-    private static final Logger logger = LogManager.getLogger();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     private static boolean initialized = false;
@@ -44,7 +41,7 @@ public class CrashReportManager {
                 sentReports.addAll(Files.readAllLines(sentReportsLogFile));
             }
         } catch (IOException e) {
-            logger.error("Failed to load sent crash reports log", e);
+            LogHelper.error("Failed to load sent crash reports log: %s", e.getMessage());
         }
 
         LogHelper.info("CrashReportManager initialized, watching: %s", crashReportsDir);
@@ -54,7 +51,7 @@ public class CrashReportManager {
             try {
                 checkForNewCrashes();
             } catch (Exception e) {
-                logger.error("Error checking for new crashes", e);
+                LogHelper.error("Error checking for new crashes: %s", e.getMessage());
             }
         }, 30, 30, TimeUnit.SECONDS);
     }
@@ -104,13 +101,13 @@ public class CrashReportManager {
                     try {
                         sendCrashReport(crashFile);
                     } catch (Exception e) {
-                        logger.error("Failed to send crash report: {}", crashFile, e);
+                        LogHelper.error("Failed to send crash report: %s (%s)", crashFile, e.getMessage());
                     }
                 });
             }
 
         } catch (IOException e) {
-            logger.error("Error checking crash reports directory", e);
+            LogHelper.error("Error checking crash reports directory: %s", e.getMessage());
         }
     }
     
@@ -142,7 +139,7 @@ public class CrashReportManager {
             Files.writeString(jsonFile, json);
             LogHelper.info("Saved crash report json for diagnostics: %s", jsonFile.toString());
         } catch (Exception e) {
-            logger.error("Failed to save crash report json for diagnostics", e);
+            LogHelper.error("Failed to save crash report json for diagnostics: %s", e.getMessage());
         }
 
         try {
@@ -154,7 +151,7 @@ public class CrashReportManager {
                 try {
                     Files.writeString(sentReportsLogFile, filename + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
-                    logger.error("Failed to update sent crash reports log", e);
+                    LogHelper.error("Failed to update sent crash reports log: %s", e.getMessage());
                 }
                 LogHelper.info("Server response: %s", event.message);
                 if (event.savedPath != null) {
@@ -211,7 +208,7 @@ public class CrashReportManager {
                 return request.request();
                 
             } catch (Exception e) {
-                logger.error("Failed to send crash report manually", e);
+                LogHelper.error("Failed to send crash report manually: %s", e.getMessage());
                 return new CrashReportRequestEvent(false, "Failed to send: " + e.getMessage());
             }
         });
@@ -238,7 +235,7 @@ public class CrashReportManager {
                 })
                 .collect(Collectors.toList());
         } catch (IOException e) {
-            logger.error("Error getting crash files", e);
+            LogHelper.error("Error getting crash files: %s", e.getMessage());
             return List.of();
         }
     }

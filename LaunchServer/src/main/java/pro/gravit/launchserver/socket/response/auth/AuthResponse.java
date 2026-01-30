@@ -5,6 +5,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.gravit.launcher.base.events.request.AuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
+import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
 import pro.gravit.launchserver.auth.AuthException;
 import pro.gravit.launchserver.auth.AuthProviderPair;
 import pro.gravit.launchserver.manangers.AuthManager;
@@ -39,9 +40,11 @@ public class AuthResponse extends SimpleResponse {
                 return;
             }
             AuthContext context = server.authManager.makeAuthContext(clientData, authType, pair, login, client, ip);
-            server.authManager.check(context);
             password = server.authManager.decryptPassword(password);
-            server.authHookManager.preHook.hook(context, clientData);
+            server.authManager.check(context, password);
+            if (!(password instanceof AuthOAuthPassword)) {
+                server.authHookManager.preHook.hook(context, clientData);
+            }
             context.report = server.authManager.auth(context, password);
             server.authHookManager.postHook.hook(context, clientData);
             result.permissions = context.report.session() != null ? (context.report.session().getUser() != null ? context.report.session().getUser().getPermissions() : null) : null;

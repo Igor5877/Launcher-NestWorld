@@ -5,6 +5,7 @@ import io.jsonwebtoken.JwtException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.gravit.launcher.base.ClientPermissions;
+import pro.gravit.launcher.base.events.request.AuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
 import pro.gravit.launchserver.LaunchServer;
@@ -98,6 +99,32 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
         } catch (Exception e) {
             logger.error("SQL error", e);
             return null;
+        }
+    }
+
+    @Override
+    public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
+        SQLUserSession session;
+        try {
+            session = (SQLUserSession) getUserSessionByOAuthAccessToken(accessToken);
+        } catch (OAuthAccessTokenExpired e) {
+            throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
+        }
+        if (session == null) {
+            throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_INVALID);
+        }
+        SQLUser user = (SQLUser) session.getUser();
+        if (user == null) {
+            throw new AuthException("Internal Auth error: UserSession is broken");
+        }
+        boolean minecraftAccess = context != null && server.config.protectHandler.allowGetAccessToken(context);
+        var refreshToken = user.username.concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.username, user.password, server.keyAgreementManager.legacySalt));
+        if (minecraftAccess) {
+            String minecraftAccessToken = SecurityHelper.randomStringToken();
+            updateAuth(user, minecraftAccessToken);
+            return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(expireSeconds), session);
+        } else {
+            return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(expireSeconds), session);
         }
     }
 

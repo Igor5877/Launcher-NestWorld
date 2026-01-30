@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.gravit.launcher.base.ClientPermissions;
+import pro.gravit.launcher.base.LauncherConfig;
 import pro.gravit.launcher.base.events.request.AuthRequestEvent;
 import pro.gravit.launcher.base.profiles.ClientProfile;
 import pro.gravit.launcher.base.profiles.PlayerProfile;
@@ -82,14 +83,14 @@ public class AuthManager {
      * Validate auth params ans state
      *
      * @param context Auth context
+     * @param password User password
      * @throws AuthException auth not possible
      */
-    public void check(AuthResponse.AuthContext context) throws AuthException {
-        if (context.authType == AuthResponse.ConnectTypes.CLIENT && !context.client.checkSign) {
-            throw new AuthException("Don't skip Launcher Update");
-        }
-        if (context.client.isAuth) {
-            throw new AuthException("You are already logged in");
+    public void check(AuthResponse.AuthContext context, AuthRequest.AuthPasswordInterface password) throws AuthException {
+        if (context.authType == AuthResponse.ConnectTypes.CLIENT && !context.client.checkSign && !(password instanceof AuthOAuthPassword)) {
+            if (server.config.env == LauncherConfig.LauncherEnvironment.PROD) {
+                throw new AuthException("Don't skip Launcher Update");
+            }
         }
     }
 

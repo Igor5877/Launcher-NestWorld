@@ -16,6 +16,7 @@ import pro.gravit.launchserver.LaunchServer;
 import pro.gravit.launchserver.Reconfigurable;
 import pro.gravit.launchserver.auth.AuthException;
 import pro.gravit.launchserver.auth.AuthProviderPair;
+import pro.gravit.utils.helper.SecurityHelper;
 import pro.gravit.launchserver.auth.core.interfaces.UserHardware;
 import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportGetAllUsers;
 import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportHardware;
@@ -72,7 +73,27 @@ public abstract class AuthCoreProvider implements AutoCloseable, Reconfigurable 
     public abstract UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired;
 
     public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
-        throw new UnsupportedOperationException();
+        UserSession session;
+        try {
+            session = getUserSessionByOAuthAccessToken(accessToken);
+        } catch (OAuthAccessTokenExpired e) {
+            throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
+        }
+        if (session == null) {
+            throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_INVALID);
+        }
+        User user = session.getUser();
+        if (user == null) {
+            throw new AuthException("Internal Auth error: UserSession is broken");
+        }
+        boolean minecraftAccess = context != null && server.config.protectHandler.allowGetAccessToken(context);
+        long expire = 3600 * 1000L;
+        if (minecraftAccess) {
+            String minecraftAccessToken = SecurityHelper.randomStringToken();
+            return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, null, expire, session);
+        } else {
+            return AuthManager.AuthReport.ofOAuth(accessToken, null, expire, session);
+        }
     }
 
     public abstract AuthManager.AuthReport refreshAccessToken(String refreshToken, AuthResponse.AuthContext context /* may be null */);
