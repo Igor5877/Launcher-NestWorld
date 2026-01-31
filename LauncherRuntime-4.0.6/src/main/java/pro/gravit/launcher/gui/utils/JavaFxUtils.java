@@ -30,7 +30,7 @@ public class JavaFxUtils {
     }
 
     public static void setRadius(Region node, double width, double height) {
-        Rectangle r = new Rectangle(30, 30);
+        Rectangle r = new Rectangle(node.getWidth(), node.getHeight());
         r.setArcWidth(width);
         r.setArcHeight(height);
         node.setClip(r); // Or setShape (?)

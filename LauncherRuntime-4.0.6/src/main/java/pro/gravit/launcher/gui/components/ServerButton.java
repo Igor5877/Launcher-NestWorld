@@ -60,6 +60,7 @@ public class ServerButton extends AbstractVisualComponent {
             logo = application.tryResource(SERVER_BUTTON_DEFAULT_IMAGE);
         }
         if(logo != null) {
+            this.serverLogo.getStyleClass().add("server-logo");
             this.serverLogo.setBackground(new Background(new BackgroundImage(new Image(logo.toString()),
                                                                              BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT,
                                                                              BackgroundPosition.CENTER, new BackgroundSize(0.0, 0.0, true, true, false, true))));

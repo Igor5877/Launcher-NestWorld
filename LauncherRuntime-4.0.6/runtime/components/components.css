@@ -36,9 +36,6 @@
 .serverButtonsActive {
     -fx-background-color: -fx-grayTr-hover;
 }
-#serverLogo {
-    -fx-background-position: center;
-}
 
 
 /*-- Информация о сервере --*/
