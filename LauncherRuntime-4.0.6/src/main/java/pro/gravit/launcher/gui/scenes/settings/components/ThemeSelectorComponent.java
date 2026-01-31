@@ -20,7 +20,11 @@ public class ThemeSelectorComponent {
         comboBox.getItems().clear();
         comboBox.setConverter(new ThemeConverter());
         if(application.isThemeSupport()) {
+            String currentUsername = application.authService.getUsername();
             for(var e : RuntimeSettings.LAUNCHER_THEME.values()) {
+                if (e == RuntimeSettings.LAUNCHER_THEME.ANIME && !"Igor".equals(currentUsername)) {
+                    continue;
+                }
                 comboBox.getItems().add(e);
             }
         } else {
