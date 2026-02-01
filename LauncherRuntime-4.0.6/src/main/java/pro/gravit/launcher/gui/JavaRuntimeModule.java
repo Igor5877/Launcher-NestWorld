@@ -77,7 +77,7 @@ public class JavaRuntimeModule extends LauncherModule {
                 Более подробную информацию можно получить из лога
                 """.formatted(JVMHelper.JVM_VERSION, JVMHelper.JVM_BITS, e.getClass().getName(),
                               e.getMessage() == null ? "null" : e.getMessage());
-        JOptionPane.showMessageDialog(null, message, "GravitLauncher", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(null, message, "NestWorld", JOptionPane.ERROR_MESSAGE);
     }
 
     public static String getLauncherInfo() {

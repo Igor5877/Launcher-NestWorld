@@ -20,8 +20,8 @@ import pro.gravit.launcher.base.profiles.ClientProfile;
 import pro.gravit.utils.helper.*;
 
 public class ServerInfoScene extends AbstractScene implements SceneSupportUserBlock {
-    private static final String SERVER_BUTTON_DEFAULT_IMAGE = "images/servers/example.png";
-    private static final String SERVER_BUTTON_CUSTOM_IMAGE = "images/servers/%s.png";
+    private static final String SERVER_BUTTON_DEFAULT_IMAGE = "images/servers/Info/example.png";
+    private static final String SERVER_BUTTON_CUSTOM_IMAGE = "images/servers/Info/%s.png";
     private UserBlock userBlock;
 
     public ServerInfoScene(JavaFXApplication application) {
@@ -80,10 +80,11 @@ public class ServerInfoScene extends AbstractScene implements SceneSupportUserBl
             if (logo == null) {
                 logo = application.tryResource(SERVER_BUTTON_DEFAULT_IMAGE);
             }
-            if (logo != null) {
+            if (logo != null) { 
                 serverLogo.setBackground(new Background(new BackgroundImage(new Image(logo.toString()),
                         BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT,
                         BackgroundPosition.CENTER, new BackgroundSize(0.0, 0.0, true, true, false, true))));
+                pro.gravit.launcher.gui.utils.JavaFxUtils.setRadius(serverLogo, 40.0);
             }
         });
         this.userBlock.reset();

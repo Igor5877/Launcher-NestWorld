@@ -31,7 +31,9 @@ public void reset() {
     
     // Логіка для кнопки "Зберегти"
     LookupHelper.<Button>lookupIfPossible(layout, "#savepanel", "#save").ifPresent(saveButton -> {
+        saveButton.setText(application.getTranslation("runtime.components.serverButton.save"));
         saveButton.setOnAction(e -> {
+            
             try {
                 application.profilesService.setOptionalView(profile, optionsTab.getOptionalView());
                 switchScene(application.gui.serverInfoScene);
@@ -43,6 +45,7 @@ public void reset() {
 
     // Логіка для кнопки "Скинути" (яка у вас #clientSettings)
     LookupHelper.<ButtonBase>lookupIfPossible(layout, "#savepanel", "#clientSettings").ifPresent(resetButton -> {
+        resetButton.setText(application.getTranslation("runtime.components.serverButton.reset"));
         resetButton.setOnAction(e -> {
             optionsTab.clear();
             application.profilesService.setOptionalView(profile, new OptionalView(profile));

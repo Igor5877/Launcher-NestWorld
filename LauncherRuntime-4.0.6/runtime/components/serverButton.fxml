@@ -9,9 +9,9 @@
 
 <!-- DrLeonardo refactor -->
 
-<Pane fx:id="serverButton" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity"
+<Pane fx:id="serverButton" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" 
    minWidth="-Infinity" prefHeight="203.0" prefWidth="560.0" styleClass="b-20"
-   xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1">
+   stylesheets="@components.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1">
    <Pane id="serverButtonLayout" layoutX="3.0" prefHeight="203.0" prefWidth="560.0"
       styleClass="serverButtons">
       <children>

@@ -117,6 +117,7 @@ public class SettingsScene extends BaseSettingsScene implements SceneSupportUser
         // serverButton.enableResetButton(null, (e) -> reset());
          // Виправляємо логіку для кнопок з savepanel
     LookupHelper.<Button>lookupIfPossible(layout, "#savepanel", "#save").ifPresent(saveButton -> {
+        saveButton.setText(application.getTranslation("runtime.components.serverButton.save"));
         saveButton.setOnAction(e -> {
             try {
                 profileSettings.apply();
@@ -132,6 +133,7 @@ public class SettingsScene extends BaseSettingsScene implements SceneSupportUser
     // Я припускаю, що ви хотіли, щоб кнопка "Налаштування клієнта" скидала налаштування.
     // Якщо її роль інша, дайте знати.
     LookupHelper.<ButtonBase>lookupIfPossible(layout, "#savepanel", "#clientSettings").ifPresent(settingsButton -> {
+        settingsButton.setText(application.getTranslation("runtime.components.serverButton.reset"));
         settingsButton.setOnAction(e -> reset());
     });
         add("Debug", application.runtimeSettings.globalSettings.debugAllClients || profileSettings.debug, (value) -> profileSettings.debug = value, application.runtimeSettings.globalSettings.debugAllClients);
