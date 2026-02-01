@@ -1,64 +1,54 @@
 #!/bin/bash
 
 # ==============================================================================
-# GravitLauncher Linux Bootstrapper
-# Цей скрипт автоматично завантажує Java (якщо потрібно) та запускає лаунчер.
+# GravitLauncher Linux Bootstrapper (JavaFX Ready)
+# This script automatically downloads Java with JavaFX and starts the launcher.
 # ==============================================================================
 
-# Налаштування
+# Configuration
 PROJECT_NAME="NestWorld"
 LAUNCHER_URL="https://launcher.nestworld.site/Launcher.jar"
-JAVA_URL="https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jre_x64_linux_hotspot_17.0.10_7.tar.gz"
+# BellSoft Liberica Full JRE (includes JavaFX)
+JAVA_URL="https://download.bell-sw.com/java/17.0.14+10/bellsoft-jre17.0.14+10-linux-amd64-full.tar.gz"
 
-# Папки та файли
+# Directories and files
 WORK_DIR="$HOME/.${PROJECT_NAME,,}"
-JRE_DIR="$WORK_DIR/jre-17"
+JRE_DIR="$WORK_DIR/jre-17-full"
 LAUNCHER_JAR="$WORK_DIR/Launcher.jar"
 
 echo "=== $PROJECT_NAME Launcher Bootstrapper ==="
 
-# Створення робочої директорії
+# Create work directory
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR" || exit
 
-# Перевірка наявності curl
+# Check for curl
 if ! command -v curl &> /dev/null; then
-    echo "Помилка: curl не встановлено. Будь ласка, встановіть його (sudo apt install curl)."
+    echo "Error: curl is not installed. Please install it (e.g., sudo apt install curl)."
     exit 1
 fi
 
-# Завантаження лаунчера, якщо його немає
+# Download launcher if missing or update it?
+# For now, let's just download if missing.
 if [ ! -f "$LAUNCHER_JAR" ]; then
-    echo "[1/3] Завантаження лаунчера..."
+    echo "[1/2] Downloading launcher..."
     curl -L -o "$LAUNCHER_JAR" "$LAUNCHER_URL"
 fi
 
-# Перевірка Java
-USE_SYSTEM_JAVA=false
-if command -v java &> /dev/null; then
-    JAVA_VER=$(java -version 2>&1 | head -n 1 | cut -d '"' -f 2 | cut -d '.' -f 1)
-    if [ "$JAVA_VER" -eq 17 ]; then
-        echo "[2/3] Знайдено системну Java 17."
-        USE_SYSTEM_JAVA=true
-    fi
-fi
-
-if [ "$USE_SYSTEM_JAVA" = false ]; then
-    if [ ! -d "$JRE_DIR" ]; then
-        echo "[2/3] Портативна Java не знайдена. Завантаження JRE 17..."
-        curl -L -o jre.tar.gz "$JAVA_URL"
-        mkdir -p "$JRE_DIR"
-        tar -xzf jre.tar.gz -C "$JRE_DIR" --strip-components=1
-        rm jre.tar.gz
-        echo "JRE встановлено у $JRE_DIR"
-    else
-        echo "[2/3] Використання портативної Java з $JRE_DIR"
-    fi
-    JAVA_BIN="$JRE_DIR/bin/java"
+# We ALWAYS prefer our portable Full JRE to avoid JavaFX issues with system Java
+if [ ! -d "$JRE_DIR" ]; then
+    echo "[2/2] Downloading Java with JavaFX (BellSoft Liberica)..."
+    curl -L -o jre.tar.gz "$JAVA_URL"
+    mkdir -p "$JRE_DIR"
+    tar -xzf jre.tar.gz -C "$JRE_DIR" --strip-components=1
+    rm jre.tar.gz
+    echo "JRE installed in $JRE_DIR"
 else
-    JAVA_BIN="java"
+    echo "[2/2] Using portable Java with JavaFX support."
 fi
 
-# Запуск лаунчера
-echo "[3/3] Запуск лаунчера..."
-"$JAVA_BIN" -Xmx512M -jar "$LAUNCHER_JAR"
+JAVA_BIN="$JRE_DIR/bin/java"
+
+# Start launcher
+echo "Starting launcher..."
+"$JAVA_BIN" -Xmx1024M -jar "$LAUNCHER_JAR"

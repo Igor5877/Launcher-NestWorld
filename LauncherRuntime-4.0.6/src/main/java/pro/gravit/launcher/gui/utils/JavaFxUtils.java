@@ -30,12 +30,12 @@ public class JavaFxUtils {
     }
 
     public static void setRadius(Region node, double width, double height) {
-        Rectangle r = new Rectangle(node.getWidth(), node.getHeight());
+        Rectangle r = new Rectangle();
         r.setArcWidth(width);
         r.setArcHeight(height);
-        node.setClip(r); // Or setShape (?)
-        node.widthProperty().addListener(p -> r.setWidth(node.getWidth()));
-        node.heightProperty().addListener(p -> r.setHeight(node.getHeight()));
+        r.widthProperty().bind(node.widthProperty());
+        r.heightProperty().bind(node.heightProperty());
+        node.setClip(r);
     }
 
     public static void setStaticRadius(ImageView node, double radius) {
