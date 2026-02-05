@@ -10,6 +10,7 @@ import pro.gravit.launcher.gui.scenes.login.LoginAuthButtonComponent;
 import pro.gravit.launcher.gui.scenes.login.LoginScene;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launcher.base.request.auth.details.AuthPasswordDetails;
+import pro.gravit.launcher.base.request.auth.password.AuthTokenPassword;
 import pro.gravit.utils.helper.LogHelper;
 
 import java.util.concurrent.CompletableFuture;
@@ -54,15 +55,25 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
 
     @Override
     public CompletableFuture<AuthFlow.LoginAndPasswordResult> auth(AuthPasswordDetails details) {
-        overlay.future = new CompletableFuture<>();
+        CompletableFuture<AuthFlow.LoginAndPasswordResult> future = new CompletableFuture<>();
         String login = overlay.login.getText();
-        AuthRequest.AuthPasswordInterface password;
+        if(login.isEmpty()) {
+            future.completeExceptionally(new IllegalArgumentException("Login is empty"));
+            return future;
+        }
         if (overlay.password.getText().isEmpty() && overlay.password.getPromptText().equals(application.getTranslation(
                 "runtime.scenes.login.password.saved"))) {
-            password = application.runtimeSettings.password;
-            return CompletableFuture.completedFuture(new AuthFlow.LoginAndPasswordResult(login, password));
+            AuthRequest.AuthPasswordInterface password = application.runtimeSettings.password;
+            future.complete(new AuthFlow.LoginAndPasswordResult(login, password));
+        } else {
+            String password = overlay.password.getText();
+            if(password.isEmpty()) {
+                future.completeExceptionally(new IllegalArgumentException("Password is empty"));
+                return future;
+            }
+            future.complete(new AuthFlow.LoginAndPasswordResult(login, application.authService.makePassword(password)));
         }
-        return overlay.future;
+        return future;
     }
 
     @Override

@@ -45,6 +45,7 @@ public abstract class AuthCoreProvider implements AutoCloseable, Reconfigurable 
     public static final ProviderMap<AuthCoreProvider> providers = new ProviderMap<>("AuthCoreProvider");
     private static final Logger logger = LogManager.getLogger();
     private static boolean registredProviders = false;
+    public transient List<String> features;
     protected transient LaunchServer server;
     protected transient AuthProviderPair pair;
 
