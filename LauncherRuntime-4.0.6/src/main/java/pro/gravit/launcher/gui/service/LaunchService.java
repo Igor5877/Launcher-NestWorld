@@ -22,10 +22,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 public class LaunchService {
     private final JavaFXApplication application;
@@ -249,7 +257,35 @@ public class LaunchService {
                 if(writeParamsThread != null && writeParamsThread.isAlive()) {
                     writeParamsThread.interrupt();
                 }
-                runFuture.complete(proc.exitValue());
+                int exitCode = proc.exitValue();
+                runFuture.complete(exitCode);
+                if (exitCode != 0) {
+                    LogHelper.warning("Minecraft process exited with non-zero code: %d. Assuming crash.", exitCode);
+                    try {
+                        String username = this.process.params.playerProfile.username;
+                        Path crashReportDir = this.process.workDir.resolve("crash-reports");
+                        if (Files.isDirectory(crashReportDir)) {
+                            Optional<Path> latestReportFile = Files.list(crashReportDir)
+                                .filter(f -> f.toString().endsWith(".txt"))
+                                .max(Comparator.comparingLong(f -> f.toFile().lastModified()));
+
+                            if (latestReportFile.isPresent()) {
+                                Path reportFile = latestReportFile.get();
+                                String reportName = reportFile.getFileName().toString();
+                                String reportContent = Files.readString(reportFile); // Java 11+
+                                
+                                LogHelper.info("Found crash report: %s for user %s", reportName, username);
+                                LaunchService.this.sendCrashReportToServer(username, reportName, reportContent);
+                            } else {
+                                LogHelper.info("No crash report files found in %s", crashReportDir);
+                            }
+                        } else {
+                            LogHelper.info("Crash report directory not found: %s", crashReportDir);
+                        }
+                    } catch (Exception e) {
+                        LogHelper.error(e, "Error processing crash report.");
+                    }
+                }
             } catch (Throwable e) {
                 if(writeParamsThread != null && writeParamsThread.isAlive()) {
                     writeParamsThread.interrupt();
@@ -305,5 +341,45 @@ public class LaunchService {
         public interface ProcessListener {
             void onNext(byte[] buf, int offset, int length);
         }
+    }
+
+    private void sendCrashReportToServer(String username, String reportName, String reportContent) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                Map<String, String> payload = new HashMap<>();
+                payload.put("username", username);
+                payload.put("fileName", reportName);
+                payload.put("content", reportContent);
+                String jsonPayload = Launcher.gsonManager.gson.toJson(payload);
+
+                String wsAddress = Launcher.getConfig().address;
+                if (wsAddress == null || wsAddress.isEmpty()) {
+                    LogHelper.error("Launcher WebSocket address is not configured. Cannot send crash report.");
+                    return;
+                }
+                java.net.URI wsUri = java.net.URI.create(wsAddress);
+                String scheme = wsUri.getScheme().equals("wss") ? "https" : "http";
+                String crashReportUrl = new java.net.URI(scheme, null, wsUri.getHost(), wsUri.getPort(), "/crashreport", null, null).toString();
+
+                LogHelper.debug("Sending crash report to %s", crashReportUrl);
+
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(crashReportUrl))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                        .build();
+
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() == 200) {
+                    LogHelper.info("Crash report sent successfully for user: %s, file: %s", username, reportName);
+                } else {
+                    LogHelper.error("Failed to send crash report. Server responded with %d: %s", response.statusCode(), response.body());
+                }
+            } catch (Exception e) {
+                LogHelper.error(e, "Error sending crash report for user: %s, file: %s", username, reportName);
+            }
+        });
     }
 }
