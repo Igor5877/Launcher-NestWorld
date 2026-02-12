@@ -7,6 +7,7 @@ import java.util.List;
 public class RestoreRequestEvent extends RequestEvent {
     public CurrentUserRequestEvent.UserInfo userInfo;
     public List<String> invalidTokens;
+    public AuthRequestEvent.OAuthRequestEvent oauth;
 
     public RestoreRequestEvent() {
     }
