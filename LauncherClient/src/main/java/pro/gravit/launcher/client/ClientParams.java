@@ -110,7 +110,7 @@ public class ClientParams {
         Collections.addAll(args, "--assetsDir", assetDir);
         Collections.addAll(args, "--resourcePackDir", resourcePackDir);
         if (version.compareTo(ClientProfileVersions.MINECRAFT_1_9_4) >= 0)
-            Collections.addAll(args, "--versionType", "Launcher v" + Version.getVersion().getVersionString());
+            Collections.addAll(args, "--versionType", "NestWorld-Launcher V" + Version.getVersion().getVersionString());
 
         // Add server args
         if (autoEnter) {
