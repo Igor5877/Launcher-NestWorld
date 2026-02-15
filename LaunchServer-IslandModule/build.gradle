@@ -1,0 +1,28 @@
+plugins {
+    id 'java'
+}
+
+group = 'pro.gravit.launchserver.modules.island'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly project(':LaunchServer')
+    compileOnly project(':LauncherAPI')
+    compileOnly project(':LauncherCore')
+
+    // Gson for JSON parsing/serialization
+    compileOnly group: 'com.google.code.gson', name: 'gson', version: '2.10.1'
+}
+
+jar {
+    manifest {
+        attributes(
+                'Module-Main-Class': 'pro.gravit.launchserver.modules.island.IslandModule',
+                'Automatic-Module-Name': 'pro.gravit.launchserver.modules.island'
+        )
+    }
+}
