@@ -88,6 +88,8 @@ public class IslandModule extends LauncherModule {
         ClientProfile profile = client.profile;
         if(profile == null) return;
 
+        LogHelper.debug("IslandModule: Checking profile %s (UUID: %s). Allowed: %s", profile.getTitle(), profile.getUUID(), config.profiles);
+
         // Check if the profile UUID is in the allowed list
         if (config.profiles == null || !config.profiles.contains(profile.getUUID().toString())) {
             return;
@@ -95,13 +97,14 @@ public class IslandModule extends LauncherModule {
 
         String apiUrl = config.apiUrl;
         String username = client.username;
-        UUID uuid = client.uuid;
+        // Generate offline UUID based on username as the server is in offline mode
+        UUID uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + username).getBytes(StandardCharsets.UTF_8));
 
         final String targetUrl = apiUrl;
         final String finalUsername = username;
         final UUID finalUuid = uuid;
 
-        LogHelper.debug("Sending island start request for user %s (UUID: %s) on profile %s", username, uuid, profile.getTitle());
+        LogHelper.debug("Sending island start request for user %s (Offline UUID: %s) on profile %s", username, uuid, profile.getTitle());
 
         // Send request asynchronously
         executor.submit(() -> sendApiRequest(targetUrl, finalUsername, finalUuid));
