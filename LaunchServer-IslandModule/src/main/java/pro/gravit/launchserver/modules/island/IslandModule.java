@@ -56,7 +56,10 @@ public class IslandModule extends LauncherModule {
             return false; // Don't interrupt the auth flow
         });
 
-        LogHelper.info("IslandModule initialized");
+        LogHelper.info("IslandModule initialized. Enabled: %s", config.enabled);
+        if (config.enabled) {
+            LogHelper.debug("Allowed profiles: %s", config.profiles);
+        }
     }
 
     private void loadConfig(LaunchServer server) {
@@ -82,14 +85,21 @@ public class IslandModule extends LauncherModule {
     }
 
     private void onSetProfile(SetProfileResponse response, Client client) {
-        if (!config.enabled) return;
+        if (!config.enabled) {
+            return;
+        }
         
         // In SetProfileResponse, client.profile is set just before the hook
         ClientProfile profile = client.profile;
-        if(profile == null) return;
+        if(profile == null) {
+            LogHelper.warning("Client profile is null for user %s", client.username);
+            return;
+        }
         
         // Check if the profile UUID is in the allowed list
-        if (config.profiles == null || !config.profiles.contains(profile.getUUID().toString())) {
+        String profileUUID = profile.getUUID().toString();
+        if (config.profiles == null || !config.profiles.contains(profileUUID)) {
+            LogHelper.debug("Profile %s (UUID: %s) is not in allowed list. Allowed: %s", profile.getTitle(), profileUUID, config.profiles);
             return;
         }
 
