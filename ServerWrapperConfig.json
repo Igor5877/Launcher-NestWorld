@@ -1,0 +1,31 @@
+{
+  "projectname": "Sky-Tecnhologies",
+  "address": "ws://localhost:9274/api",
+  "serverName": "main",
+  "autoloadLibraries": false,
+  "classpath": [],
+  "classLoaderConfig": "SYSTEM_ARGS",
+  "librariesDir": "libraries",
+  "mainclass": "cpw.mods.bootstraplauncher.BootstrapLauncher",
+  "nativesDir": "natives",
+  "args": [
+    "--launchTarget",
+    "forgeserver",
+    "--fml.forgeVersion",
+    "47.4.9",
+    "--fml.mcVersion",
+    "1.20.1",
+    "--fml.forgeGroup",
+    "net.minecraftforge",
+    "--fml.mcpVersion",
+    "20230612.114412"
+  ],
+  "extendedTokens": {
+    "checkServer": {
+      "token": "YOUR_TOKEN_HERE",
+      "expire": 0
+    }
+  },
+  "env": "STD",
+  "properties": {}
+}

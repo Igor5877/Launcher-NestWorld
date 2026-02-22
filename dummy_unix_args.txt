@@ -1,0 +1,7 @@
+-p libraries/cpw/mods/bootstraplauncher/1.1.2/bootstraplauncher-1.1.2.jar:libraries/cpw/mods/securejarhandler/2.1.10/securejarhandler-2.1.10.jar
+--add-modules ALL-MODULE-PATH
+--add-opens java.base/java.util.jar=cpw.mods.securejarhandler
+-Djava.net.preferIPv6Addresses=system
+cpw.mods.bootstraplauncher.BootstrapLauncher
+--launchTarget forgeserver
+--fml.forgeVersion 47.4.9
