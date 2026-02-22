@@ -32,6 +32,7 @@ public class IslandModule extends LauncherModule {
     private IslandConfig config;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private ExecutorService executor;
+    private LaunchServer server;
 
     public IslandModule() {
         super(new LauncherModuleInfo(MODULE_NAME, MODULE_VERSION));
@@ -43,7 +44,7 @@ public class IslandModule extends LauncherModule {
     }
 
     private void finishInit(LaunchServerFullInitEvent event) {
-        LaunchServer server = event.server;
+        this.server = event.server;
         loadConfig(server);
         executor = Executors.newCachedThreadPool();
 
@@ -56,7 +57,10 @@ public class IslandModule extends LauncherModule {
             return false; // Don't interrupt the auth flow
         });
 
-        LogHelper.info("IslandModule initialized");
+        LogHelper.info("IslandModule initialized. Enabled: %s", config.enabled);
+        if (config.enabled) {
+            LogHelper.debug("Allowed profiles: %s", config.profiles);
+        }
     }
 
     private void loadConfig(LaunchServer server) {
@@ -82,14 +86,28 @@ public class IslandModule extends LauncherModule {
     }
 
     private void onSetProfile(SetProfileResponse response, Client client) {
-        if (!config.enabled) return;
+        if (!config.enabled) {
+            return;
+        }
         
-        // In SetProfileResponse, client.profile is set just before the hook
-        ClientProfile profile = client.profile;
-        if(profile == null) return;
+        // Find profile by name from response
+        ClientProfile profile = null;
+        for (ClientProfile p : server.getProfiles()) {
+            if (p.getTitle().equals(response.client)) {
+                profile = p;
+                break;
+            }
+        }
+
+        if(profile == null) {
+            LogHelper.warning("Client profile %s not found for user %s", response.client, client.username);
+            return;
+        }
         
         // Check if the profile UUID is in the allowed list
-        if (config.profiles == null || !config.profiles.contains(profile.getUUID().toString())) {
+        String profileUUID = profile.getUUID().toString();
+        if (config.profiles == null || !config.profiles.contains(profileUUID)) {
+            LogHelper.debug("Profile %s (UUID: %s) is not in allowed list. Allowed: %s", profile.getTitle(), profileUUID, config.profiles);
             return;
         }
 
@@ -133,11 +151,11 @@ public class IslandModule extends LauncherModule {
             if (responseCode >= 200 && responseCode < 300) {
                 LogHelper.debug("Island API request successful: %d", responseCode);
             } else {
-                LogHelper.warning("Island API request failed: %d", responseCode);
+                LogHelper.debug("Island API request failed: %d", responseCode);
             }
 
         } catch (Exception e) {
-            LogHelper.warning("Failed to send request to Island API: %s", e.getMessage());
+            LogHelper.debug("Failed to send request to Island API: %s", e.getMessage());
         } finally {
             if(conn != null) {
                 conn.disconnect();

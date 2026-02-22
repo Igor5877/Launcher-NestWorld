@@ -18,7 +18,7 @@
     </AnchorPane>
 
     <!-- Блок списка серверов -->
-    <ScrollPane id="servers" fitToWidth="true" layoutX="308.0" layoutY="93.0" prefHeight="10.0" prefWidth="10.0" vbarPolicy="AS_NEEDED" AnchorPane.bottomAnchor="7.0" AnchorPane.leftAnchor="308.0" AnchorPane.rightAnchor="3.0" AnchorPane.topAnchor="93.0">
+    <ScrollPane id="servers" fitToWidth="true" layoutX="255.0" layoutY="93.0" prefHeight="460.0" prefWidth="672.0" vbarPolicy="AS_NEEDED" AnchorPane.bottomAnchor="7.0" AnchorPane.leftAnchor="255.0" AnchorPane.rightAnchor="3.0" AnchorPane.topAnchor="93.0">
         <VBox alignment="CENTER" />
     </ScrollPane>
 </AnchorPane>

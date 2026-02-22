@@ -9,3 +9,10 @@ ScrollPane Label {
     -fx-font-size: 14px;
     -fx-text-fill: -fx-colors-text;
 }
+/* .server-logo {
+
+    -fx-background-radius: 20;
+    -fx-background-position: center;
+    -fx-background-repeat: no-repeat;
+    -fx-background-size: contain;
+} */

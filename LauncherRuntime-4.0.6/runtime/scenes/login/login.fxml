@@ -15,15 +15,15 @@
 <?import javafx.scene.shape.Rectangle?>
 <?import javafx.scene.text.Text?>
 
-<AnchorPane id="layout" fx:id="loginPane" prefHeight="560.0" prefWidth="930.0" styleClass="background" stylesheets="@login.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane id="layout" fx:id="loginPane" prefHeight="560.0" prefWidth="930.0" styleClass="background" stylesheets="@login.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
 
     <!-- Вертикальная полоса -->
-    <AnchorPane id="loginLeftPane" prefWidth="380.0" styleClass="vline" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
-        <VBox alignment="CENTER" layoutX="35.0" layoutY="366.0" spacing="20.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+    <AnchorPane id="loginLeftPane" layoutX="43.0" layoutY="101.0" prefHeight="409.0" prefWidth="366.0" styleClass="vline">
+        <VBox alignment="CENTER" layoutX="49.0" layoutY="64.0" prefHeight="371.0" prefWidth="285.0" spacing="20.0" AnchorPane.bottomAnchor="38.0" AnchorPane.leftAnchor="32.0" AnchorPane.rightAnchor="32.0" AnchorPane.topAnchor="32.0">
             <children>
-            <FlowPane alignment="CENTER" maxHeight="-Infinity" minHeight="-Infinity" orientation="VERTICAL" prefHeight="320.0">
+            <FlowPane alignment="CENTER" maxHeight="-Infinity" minHeight="-Infinity" orientation="VERTICAL" prefHeight="154.0" prefWidth="198.0">
                <children>
-                    <ImageView id="logo" pickOnBounds="true" preserveRatio="true">
+                    <ImageView id="logo" fitHeight="146.0" fitWidth="170.0" pickOnBounds="true" preserveRatio="true">
                         <image>
                             <Image url="@../../images/logo.png" />
                         </image>
@@ -52,6 +52,22 @@
             </children>
         </VBox>
     </AnchorPane>
+   <AnchorPane layoutX="442.0" layoutY="138.0" prefHeight="320.0" prefWidth="459.0" styleClass="centerpanel" AnchorPane.leftAnchor="442.0" AnchorPane.topAnchor="138.0">
+      <children>
+         <Text id="auth_label" strokeWidth="0.0" text="%runtime.scenes.login.authorization" AnchorPane.leftAnchor="15.0" AnchorPane.topAnchor="10.0" />
+          <VBox alignment="CENTER" fillWidth="false" pickOnBounds="false" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+              <children>
+                  <StackPane id="content" />
+               <Text id="forgotPass" strokeWidth="0.0" text="%runtime.scenes.login.forgotPass" textAlignment="RIGHT">
+                  <VBox.margin>
+                     <Insets left="200.0" />
+                  </VBox.margin>
+               </Text>
+                  <Button id="authButton" defaultButton="true" prefHeight="20.0" prefWidth="300.0" styleClass="unactiveButton" text="%runtime.scenes.login.goAuth" />
+              </children>
+          </VBox>
+      </children>
+   </AnchorPane>
     <AnchorPane id="header" prefHeight="80.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
         <!-- Кнопки управления -->
         <HBox id="controls" spacing="10.0" AnchorPane.rightAnchor="29.0" AnchorPane.topAnchor="34.0">
@@ -70,10 +86,4 @@
             <fx:include source="../../components/buttons/exit.fxml" />
         </HBox>
     </AnchorPane>
-    <VBox alignment="CENTER_LEFT" fillWidth="false" layoutX="330.0" layoutY="100.0" pickOnBounds="false" spacing="10.0" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="412.0" AnchorPane.rightAnchor="5.0" AnchorPane.topAnchor="5.0">
-        <children>
-            <StackPane id="content" />
-            <Button id="authButton" defaultButton="true" prefHeight="20.0" prefWidth="300.0" styleClass="unactiveButton" text="%runtime.scenes.login.goAuth" />
-        </children>
-    </VBox>
 </AnchorPane>

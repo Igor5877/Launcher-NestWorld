@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.AnchorPane?>
@@ -12,7 +11,7 @@
     <AnchorPane id="header" prefHeight="80.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
         <AnchorPane prefHeight="80.0" prefWidth="630.0" AnchorPane.leftAnchor="300.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
             <children>
-                <Label id="serverName" maxWidth="400.0" prefHeight="32.0" styleClass="scene-header" text="ServerName" AnchorPane.leftAnchor="35.0" AnchorPane.topAnchor="34.0" />
+                <Label id="serverName" layoutX="7.0" layoutY="34.0" maxWidth="400.0" prefHeight="32.0" styleClass="scene-header" text="ServerName" AnchorPane.leftAnchor="7.0" AnchorPane.topAnchor="34.0" />
                 <!-- Кнопки управления -->
                 <HBox id="controls" spacing="10.0" AnchorPane.rightAnchor="29.0" AnchorPane.topAnchor="34.0">
                     <fx:include source="../../components/buttons/back.fxml" />
@@ -24,15 +23,15 @@
         </AnchorPane>
     </AnchorPane>
     <fx:include source="../../components/panels/leftpanel.fxml" />
-    <AnchorPane prefHeight="480.0" prefWidth="630.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="300.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="80.0">
+    <AnchorPane layoutX="256.0" prefHeight="480.0" prefWidth="674.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="256.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="80.0">
         <children>
-            <Region id="serverLogo" layoutY="19.0" prefHeight="386.0" prefWidth="167.0" AnchorPane.bottomAnchor="75.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="463.0" AnchorPane.topAnchor="19.0" />
+            <Region id="serverLogo" layoutX="26.0" layoutY="14.0" prefHeight="386.0" prefWidth="167.0" AnchorPane.bottomAnchor="80.0" AnchorPane.leftAnchor="26.0" AnchorPane.rightAnchor="437.0" AnchorPane.topAnchor="14.0" />
             <ScrollPane id="serverDescriptionPane" fitToWidth="true" hbarPolicy="NEVER" layoutX="266.4" pannable="true" prefHeight="404.0" prefWidth="344.0" AnchorPane.bottomAnchor="76.0" AnchorPane.leftAnchor="266.0" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="0.0">
                 <content>
                     <Label alignment="TOP_LEFT" maxWidth="1.7976931348623157E308" prefWidth="149.0" text="Server description" wrapText="true" />
                 </content>
             </ScrollPane>
-              <fx:include source="../../components/panels/savepanel.fxml" AnchorPane.leftAnchor="308.0" AnchorPane.topAnchor="420.0" />
+              <fx:include source="../../components/panels/savepanel.fxml" AnchorPane.leftAnchor="355.0" AnchorPane.topAnchor="420.0" />
         </children>
     </AnchorPane>
 </AnchorPane>

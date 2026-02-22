@@ -348,13 +348,53 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         return List.of(new AuthPasswordDetails(), new AuthTotpDetails("SHA1"));
     }
 
+    /**
+     * ВИПРАВЛЕННЯ: joinServer більше не покладається на client.getUser(),
+     * який завжди null для підключень від ServerWrapper.
+     *
+     * Правильна логіка:
+     * 1. Знаходимо гравця в БД по username
+     * 2. Перевіряємо що accessToken збігається з тим що в БД (записаний під час авторизації)
+     * 3. Записуємо serverID в БД для подальшої перевірки через checkServer
+     */
     @Override
     public boolean joinServer(Client client, String username, UUID uuid, String accessToken, String serverID) throws IOException {
         if (!isDatabaseMode) {
             logger.warn("Database mode is disabled. Cannot join server for user '{}'.", username);
             return false;
         }
-        return sql.joinServer(client, username, uuid, accessToken, serverID);
+
+        // Шукаємо гравця напряму з БД — НЕ через client.getUser()
+        User abstractUser = sql.getUserByUsername(username);
+        if (!(abstractUser instanceof AbstractSQLCoreProvider.SQLUser user)) {
+            logger.warn("joinServer: user '{}' not found in database", username);
+            return false;
+        }
+
+        // Перевіряємо UUID якщо він переданий
+        if (uuid != null && !user.getUUID().equals(uuid)) {
+            logger.warn("joinServer: UUID mismatch for user '{}'. Expected: {}, got: {}",
+                    username, user.getUUID(), uuid);
+            return false;
+        }
+
+        // Перевіряємо accessToken
+        String storedToken = user.getAccessToken();
+        if (storedToken == null || !storedToken.equals(accessToken)) {
+            logger.warn("joinServer: accessToken mismatch for user '{}'. " +
+                    "Stored: '{}', received: '{}'",
+                    username,
+                    storedToken != null ? storedToken.substring(0, Math.min(8, storedToken.length())) + "..." : "null",
+                    accessToken != null ? accessToken.substring(0, Math.min(8, accessToken.length())) + "..." : "null");
+            return false;
+        }
+
+        // Записуємо serverID в БД
+        boolean updated = sql.updateServerID(user, serverID);
+        if (!updated) {
+            logger.warn("joinServer: failed to update serverID for user '{}'", username);
+        }
+        return updated;
     }
 
     // ===== HWID Support Methods =====

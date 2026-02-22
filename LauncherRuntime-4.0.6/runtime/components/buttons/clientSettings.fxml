@@ -5,7 +5,8 @@
 <?import javafx.scene.shape.SVGPath?>
 
 <!-- Кнопка настроек опциональных модов -->
-<Button id="clientSettings" prefHeight="40.0" prefWidth="145.0" styleClass="mods-button" text="Моди">
+
+<Button id="clientSettings" prefHeight="40.0" prefWidth="145.0" styleClass="mods-button" text="%runtime.scenes.servermenu.mods" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
     <graphic>
         <SVGPath content="M 15 3 C 8.373 3 3 8.373 3 15 c 0 6.627 5.373 12 12 12 s 12 -5.373 12 -12 C 27 8.373 21.627 3 15 3 Z M 21 16 h -5 v 5 c 0 0.553 -0.448 1 -1 1 s -1 -0.447 -1 -1 v -5 H 9 c -0.552 0 -1 -0.447 -1 -1 s 0.448 -1 1 -1 h 5 V 9 c 0 -0.553 0.448 -1 1 -1 s 1 0.447 1 1 v 5 h 5 c 0.552 0 1 0.447 1 1 S 21.552 16 21 16 Z" scaleX="0.65" scaleY="0.65" />
     </graphic>
