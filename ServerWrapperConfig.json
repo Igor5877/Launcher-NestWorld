@@ -1,7 +1,7 @@
 {
   "projectname": "Sky-Tecnhologies",
   "address": "ws://localhost:9274/api",
-  "serverName": "main",
+  "serverName": "Sky-Tecnhologies",
   "autoloadLibraries": false,
   "classpath": [],
   "classLoaderConfig": "SYSTEM_ARGS",
