@@ -135,6 +135,12 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
 
             boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
+            if (!minecraftAccess) {
+                if (server.config.env == pro.gravit.launcher.base.LauncherConfig.LauncherEnvironment.DEV ||
+                        server.config.env == pro.gravit.launcher.base.LauncherConfig.LauncherEnvironment.DEBUG) {
+                    minecraftAccess = true;
+                }
+            }
 
             if (!isDatabaseMode) {
                 UserSession session = createOfflineSession(azuriomUser);
