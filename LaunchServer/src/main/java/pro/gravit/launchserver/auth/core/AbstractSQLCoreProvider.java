@@ -276,7 +276,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
             SQLUser.accessToken = accessToken;
             PreparedStatement s = c.prepareStatement(updateAuthSQL);
             s.setString(1, accessToken);
-            s.setString(2, user.getUUID().toString());
+            s.setString(2, user.getUUID().toString().replace("-", ""));
             s.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
             s.executeUpdate();
         } catch (SQLException e) {
@@ -290,7 +290,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
             SQLUser.serverId = serverID;
             PreparedStatement s = c.prepareStatement(updateServerIDSQL);
             s.setString(1, serverID);
-            s.setString(2, user.getUUID().toString());
+            s.setString(2, user.getUUID().toString().replace("-", ""));
             s.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
             return s.executeUpdate() > 0;
         } catch (SQLException e) {
