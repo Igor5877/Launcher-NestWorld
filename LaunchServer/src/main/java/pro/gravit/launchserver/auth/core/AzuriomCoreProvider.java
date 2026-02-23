@@ -5,6 +5,7 @@ import com.azuriom.azauth.exception.AuthException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.gravit.launcher.base.ClientPermissions;
+import pro.gravit.launcher.base.LauncherConfig;
 import pro.gravit.launcher.base.events.request.GetAvailabilityAuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launcher.base.request.auth.details.AuthPasswordDetails;
@@ -134,7 +135,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         try {
             com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
 
-            boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
+            boolean minecraftAccess = context != null && (server.config.protectHandler.allowGetAccessToken(context)
+                    || (context.authType == AuthResponse.ConnectTypes.CLIENT
+                    && (server.config.env == LauncherConfig.LauncherEnvironment.DEV || server.config.env == LauncherConfig.LauncherEnvironment.DEBUG)));
 
             if (!isDatabaseMode) {
                 UserSession session = createOfflineSession(azuriomUser);
