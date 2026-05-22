@@ -8,7 +8,6 @@ import pro.gravit.launcher.base.ClientPermissions;
 import pro.gravit.launcher.base.events.request.GetAvailabilityAuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launcher.base.request.auth.details.AuthPasswordDetails;
-import pro.gravit.launcher.base.request.auth.details.AuthTotpDetails;
 import pro.gravit.launcher.base.request.auth.password.Auth2FAPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthTOTPPassword;
@@ -24,8 +23,14 @@ import pro.gravit.launchserver.socket.response.auth.AuthResponse;
 import pro.gravit.utils.helper.SecurityHelper;
 
 import java.io.IOException;
-import java.time.Clock;
-import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +39,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupportHardware, AuthSupportExtendedCheckServer {
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
+    public String tokensTable = "personal_access_tokens";
     public MySQLCoreProvider sql;
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
@@ -128,41 +134,71 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), new ClientPermissions());
         return new OfflineUserSession(user);
     }
-    
+
+    // Verifies a Sanctum token (format: "{id}|{plaintext}") against the shared database.
+    // Returns the user UUID on success, throws OAuthAccessTokenExpired on failure.
+    private UUID verifyTokenFromDatabase(String accessToken) throws OAuthAccessTokenExpired {
+        if (!isDatabaseMode) {
+            throw new OAuthAccessTokenExpired("Database mode is disabled, cannot verify token via SQL");
+        }
+        String[] parts = accessToken.split("\\|", 2);
+        if (parts.length != 2) {
+            throw new OAuthAccessTokenExpired("Invalid token format");
+        }
+        long tokenId;
+        try {
+            tokenId = Long.parseLong(parts[0]);
+        } catch (NumberFormatException e) {
+            throw new OAuthAccessTokenExpired("Invalid token id");
+        }
+        String plaintext = parts[1];
+        String hexHash;
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            hexHash = HexFormat.of().formatHex(md.digest(plaintext.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new OAuthAccessTokenExpired("SHA-256 not available");
+        }
+        String sql_query = String.format(
+            "SELECT u.%s FROM %s u INNER JOIN %s t ON u.id = t.tokenable_id" +
+            " WHERE t.id = ? AND t.token = ? AND (t.expires_at IS NULL OR t.expires_at > NOW())",
+            sql.uuidColumn, sql.table, tokensTable);
+        try (Connection conn = sql.mySQLHolder.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql_query)) {
+            stmt.setLong(1, tokenId);
+            stmt.setString(2, hexHash);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    throw new OAuthAccessTokenExpired("Token not found or expired");
+                }
+                String uuidStr = rs.getString(sql.uuidColumn);
+                return UUID.fromString(uuidStr);
+            }
+        } catch (SQLException e) {
+            logger.error("SQL error during token verification", e);
+            throw new OAuthAccessTokenExpired("Database error during token verification");
+        }
+    }
+
     @Override
     public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
         try {
-            com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
+            UUID userUuid = verifyTokenFromDatabase(accessToken);
 
             boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
 
-            if (!isDatabaseMode) {
-                UserSession session = createOfflineSession(azuriomUser);
-                User user = session.getUser();
-                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
-
-                if (minecraftAccess) {
-                    String minecraftAccessToken = SecurityHelper.randomStringToken();
-                    return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(3600), session);
-                } else {
-                    return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(3600), session);
-                }
-            }
-
-            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
+            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(userUuid);
 
             if (localUser == null) {
-                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.",
-                        azuriomUser.getUsername(), azuriomUser.getUuid());
-                throw new AuthException("User not found in local database");
+                logger.warn("User with UUID '{}' verified via token but not found in local database.", userUuid);
+                throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
             }
 
-            enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
 
             UserSession session = sql.createSession(localUser);
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
-            
+
             if (minecraftAccess) {
                 String minecraftAccessToken = SecurityHelper.randomStringToken();
                 sql.updateAuth(localUser, minecraftAccessToken);
@@ -171,7 +207,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             }
 
-        } catch (AuthException e) {
+        } catch (OAuthAccessTokenExpired e) {
             throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
         } catch (pro.gravit.launchserver.auth.AuthException e) {
             throw e;
@@ -180,35 +216,22 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired {
-        if (authClient == null) {
-            throw new OAuthAccessTokenExpired("Azuriom provider is not initialized");
+        UUID userUuid = verifyTokenFromDatabase(accessToken);
+
+        MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(userUuid);
+
+        if (localUser == null) {
+            logger.warn("User with UUID '{}' verified via token but not found in local database.", userUuid);
+            return null;
         }
+
         try {
-            com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
-
-            if (!isDatabaseMode) {
-                return createOfflineSession(azuriomUser);
-            }
-
-            MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(azuriomUser.getUuid());
-
-            if (localUser == null) {
-                logger.warn("User '{}' (UUID: {}) authenticated via Azuriom but not found in local database.", 
-                    azuriomUser.getUsername(), azuriomUser.getUuid());
-                return null;
-            }
-
-            enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
-
-            return sql.createSession(localUser);
-
-        } catch (AuthException e) {
-            throw new OAuthAccessTokenExpired(e.getMessage());
         } catch (pro.gravit.launchserver.auth.AuthException e) {
-            logger.error("Local user check failed during token verification", e);
             throw new OAuthAccessTokenExpired(e.getMessage());
         }
+
+        return sql.createSession(localUser);
     }
 
     @Override
@@ -345,7 +368,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public List<GetAvailabilityAuthRequestEvent.AuthAvailabilityDetails> getDetails(Client client) {
-        return List.of(new AuthPasswordDetails(), new AuthTotpDetails("SHA1"));
+        AuthPasswordDetails details = new AuthPasswordDetails();
+        details.url = azuriomUrl;
+        return List.of(details);
     }
 
     @Override
