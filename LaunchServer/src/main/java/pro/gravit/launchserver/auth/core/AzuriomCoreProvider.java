@@ -180,10 +180,35 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         }
     }
 
+    // Resolves a UUID from either a Sanctum token ("{id}|{plaintext}") or a LaunchServer JWT.
+    // After refreshAccessToken() the stored oauthAccessToken becomes a JWT, so both formats must be handled.
+    private UUID resolveUuidFromAccessToken(String accessToken) throws OAuthAccessTokenExpired {
+        if (isSanctumToken(accessToken)) {
+            return verifyTokenFromDatabase(accessToken);
+        }
+        try {
+            var info = LegacySessionHelper.getJwtInfoFromAccessToken(accessToken, server.keyAgreementManager.ecdsaPublicKey);
+            return info.uuid();
+        } catch (Exception e) {
+            throw new OAuthAccessTokenExpired("Invalid access token: " + e.getMessage());
+        }
+    }
+
+    private static boolean isSanctumToken(String token) {
+        int pipe = token.indexOf('|');
+        if (pipe <= 0) return false;
+        try {
+            Long.parseLong(token.substring(0, pipe));
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
     @Override
     public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
         try {
-            UUID userUuid = verifyTokenFromDatabase(accessToken);
+            UUID userUuid = resolveUuidFromAccessToken(accessToken);
 
             boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
 
@@ -216,7 +241,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired {
-        UUID userUuid = verifyTokenFromDatabase(accessToken);
+        UUID userUuid = resolveUuidFromAccessToken(accessToken);
 
         MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(userUuid);
 
