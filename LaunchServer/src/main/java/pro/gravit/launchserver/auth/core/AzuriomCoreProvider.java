@@ -35,6 +35,17 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
     public MySQLCoreProvider sql;
+    /**
+     * Maps Azuriom role names to launcher permission strings.
+     * Example config:
+     * "rolePermissions": {
+     *   "Member": ["launchserver.profile.survival-uuid.show", "launchserver.profile.survival-uuid.enter"],
+     *   "VIP":    ["launchserver.profile.survival-uuid.show", "launchserver.profile.survival-uuid.enter",
+     *              "launchserver.profile.vip-uuid.show", "launchserver.profile.vip-uuid.enter"],
+     *   "Admin":  ["*"]
+     * }
+     */
+    public java.util.Map<String, java.util.List<String>> rolePermissions;
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
 
@@ -125,7 +136,20 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     }
 
     private UserSession createOfflineSession(com.azuriom.azauth.model.User azuriomUser) {
-        User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), new ClientPermissions());
+        ClientPermissions permissions = new ClientPermissions();
+        if (azuriomUser.getRole() != null && azuriomUser.getRole().getName() != null) {
+            String azuriomRole = azuriomUser.getRole().getName();
+            permissions.addRole(azuriomRole);
+            if (rolePermissions != null) {
+                java.util.List<String> perms = rolePermissions.get(azuriomRole);
+                if (perms != null) {
+                    for (String perm : perms) {
+                        permissions.addPerm(perm);
+                    }
+                }
+            }
+        }
+        User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), permissions);
         return new OfflineUserSession(user);
     }
     
@@ -293,10 +317,19 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     }
 
     private void enrichUserWithAzuriomData(MySQLCoreProvider.MySQLUser localUser, com.azuriom.azauth.model.User azuriomUser) {
-        if (localUser.getPermissions() != null && azuriomUser.getRole() != null && azuriomUser.getRole().getName() != null) {
-            String azuriomRole = azuriomUser.getRole().getName();
-            if (!localUser.getPermissions().hasRole(azuriomRole)) {
-                localUser.getPermissions().addRole(azuriomRole);
+        if (localUser.getPermissions() == null || azuriomUser.getRole() == null || azuriomUser.getRole().getName() == null) {
+            return;
+        }
+        String azuriomRole = azuriomUser.getRole().getName();
+        if (!localUser.getPermissions().hasRole(azuriomRole)) {
+            localUser.getPermissions().addRole(azuriomRole);
+        }
+        if (rolePermissions != null) {
+            java.util.List<String> perms = rolePermissions.get(azuriomRole);
+            if (perms != null) {
+                for (String perm : perms) {
+                    localUser.getPermissions().addPerm(perm);
+                }
             }
         }
     }
