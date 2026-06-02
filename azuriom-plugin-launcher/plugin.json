@@ -1,0 +1,11 @@
+{
+    "name": "Launcher",
+    "version": "1.0.0",
+    "description": "Manage GravitLauncher profile access for roles and players directly from Azuriom admin panel.",
+    "url": "",
+    "authors": [],
+    "azuriom_api": "1.0.0",
+    "providers": [
+        "\\Azuriom\\Plugin\\Launcher\\Providers\\LauncherServiceProvider"
+    ]
+}

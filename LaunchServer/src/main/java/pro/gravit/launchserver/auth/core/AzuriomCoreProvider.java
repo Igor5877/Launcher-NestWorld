@@ -41,20 +41,12 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     public String azuriomUrl;
     public MySQLCoreProvider sql;
     /**
-     * Table in the shared MySQL database that maps Azuriom role names to
-     * launcher permission strings. Managed via phpMyAdmin — no JSON edits needed.
-     *
-     * Required schema (create once):
-     *   CREATE TABLE `launcher_role_perms` (
-     *     `id`         INT AUTO_INCREMENT PRIMARY KEY,
-     *     `role_name`  VARCHAR(255) NOT NULL,
-     *     `permission` VARCHAR(255) NOT NULL,
-     *     INDEX `idx_role` (`role_name`)
-     *   );
-     *
-     * Leave null to disable DB-driven permission mapping.
+     * Table managed by the Azuriom Launcher plugin.
+     * Rows: (profile_uuid, subject_type='role'|'player', subject_id=roleName|playerUUID)
+     * The launcher converts matching rows into launchserver.profile.{uuid}.show/enter permissions.
+     * Populated entirely through the Azuriom admin panel — no manual DB or JSON edits needed.
      */
-    public String rolePermsTable = "launcher_role_perms";
+    public String launcherAccessTable = "launcher_access";
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
 
@@ -146,32 +138,41 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     private UserSession createOfflineSession(com.azuriom.azauth.model.User azuriomUser) {
         ClientPermissions permissions = new ClientPermissions();
+        String roleName = null;
         if (azuriomUser.getRole() != null && azuriomUser.getRole().getName() != null) {
-            String azuriomRole = azuriomUser.getRole().getName();
-            permissions.addRole(azuriomRole);
+            roleName = azuriomUser.getRole().getName();
+            permissions.addRole(roleName);
         }
+        applyAccessPermissions(permissions, roleName, azuriomUser.getUuid());
         User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), permissions);
         return new OfflineUserSession(user);
     }
 
-    private List<String> queryRolePermsFromDb(String roleName) {
-        if (!isDatabaseMode || rolePermsTable == null || rolePermsTable.isBlank()) {
-            return List.of();
+    /**
+     * Queries launcher_access for all profile UUIDs accessible by the given role name
+     * or specific player UUID, then converts each into .show/.enter permission strings.
+     */
+    private void applyAccessPermissions(ClientPermissions permissions, String roleName, UUID playerUuid) {
+        if (!isDatabaseMode || launcherAccessTable == null || launcherAccessTable.isBlank()) {
+            return;
         }
-        String sql = "SELECT `permission` FROM `" + rolePermsTable + "` WHERE `role_name` = ?";
-        List<String> perms = new ArrayList<>();
+        String query = "SELECT `profile_uuid` FROM `" + launcherAccessTable + "` " +
+                       "WHERE (`subject_type` = 'role' AND `subject_id` = ?) " +
+                       "   OR (`subject_type` = 'player' AND `subject_id` = ?)";
         try (Connection c = this.sql.getSQLConfig().getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, roleName);
+             PreparedStatement ps = c.prepareStatement(query)) {
+            ps.setString(1, roleName != null ? roleName : "");
+            ps.setString(2, playerUuid != null ? playerUuid.toString() : "");
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    perms.add(rs.getString("permission"));
+                    String profileUuid = rs.getString("profile_uuid");
+                    permissions.addPerm("launchserver.profile." + profileUuid + ".show");
+                    permissions.addPerm("launchserver.profile." + profileUuid + ".enter");
                 }
             }
         } catch (SQLException e) {
-            logger.warn("Failed to query role permissions for role '{}' from table '{}': {}", roleName, rolePermsTable, e.getMessage());
+            logger.warn("Failed to query launcher_access: {}", e.getMessage());
         }
-        return perms;
     }
     
     @Override
@@ -338,16 +339,17 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     }
 
     private void enrichUserWithAzuriomData(MySQLCoreProvider.MySQLUser localUser, com.azuriom.azauth.model.User azuriomUser) {
-        if (localUser.getPermissions() == null || azuriomUser.getRole() == null || azuriomUser.getRole().getName() == null) {
+        if (localUser.getPermissions() == null) {
             return;
         }
-        String azuriomRole = azuriomUser.getRole().getName();
-        if (!localUser.getPermissions().hasRole(azuriomRole)) {
-            localUser.getPermissions().addRole(azuriomRole);
+        String roleName = null;
+        if (azuriomUser.getRole() != null && azuriomUser.getRole().getName() != null) {
+            roleName = azuriomUser.getRole().getName();
+            if (!localUser.getPermissions().hasRole(roleName)) {
+                localUser.getPermissions().addRole(roleName);
+            }
         }
-        for (String perm : queryRolePermsFromDb(azuriomRole)) {
-            localUser.getPermissions().addPerm(perm);
-        }
+        applyAccessPermissions(localUser.getPermissions(), roleName, localUser.getUUID());
     }
 
     private void checkHwidBan(MySQLCoreProvider.MySQLUser localUser) throws pro.gravit.launchserver.auth.AuthException {
