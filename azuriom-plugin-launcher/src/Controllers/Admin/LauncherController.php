@@ -98,6 +98,29 @@ class LauncherController extends Controller
         return back()->with('success', 'Гравець "' . $user->name . '" отримав доступ до ' . $target . '.');
     }
 
+    public function searchUsers(Request $request)
+    {
+        $q = $request->validate(['q' => ['required', 'string', 'min:2', 'max:32']])['q'];
+
+        $users = User::where('name', 'like', $q . '%')
+            ->orderBy('name')
+            ->limit(8)
+            ->get(['name', 'game_id'])
+            ->map(fn($u) => ['name' => $u->name, 'uuid' => $u->game_id]);
+
+        return response()->json($users);
+    }
+
+    public function stats()
+    {
+        $profiles = DB::table('launcher_profiles')->count();
+        $roleMappings = DB::table('launcher_access')->whereNull('mod_name')->where('subject_type', 'role')->count();
+        $playerGrants = DB::table('launcher_access')->whereNull('mod_name')->where('subject_type', 'player')->count();
+        $limitedMods = DB::table('launcher_mods')->count();
+
+        return response()->json(compact('profiles', 'roleMappings', 'playerGrants', 'limitedMods'));
+    }
+
     public function revoke(int $id)
     {
         DB::table('launcher_access')->where('id', $id)->delete();

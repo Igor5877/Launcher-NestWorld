@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('launcher')->name('launcher.admin.')->group(function () {
     Route::get('/', [LauncherController::class, 'index'])->name('index');
+    Route::get('/search-users', [LauncherController::class, 'searchUsers'])->name('search.users');
+    Route::get('/stats', [LauncherController::class, 'stats'])->name('stats');
     Route::post('/access/role', [LauncherController::class, 'grantRole'])->name('access.role');
     Route::post('/access/player', [LauncherController::class, 'grantPlayer'])->name('access.player');
     Route::delete('/access/{id}', [LauncherController::class, 'revoke'])->name('access.revoke');
