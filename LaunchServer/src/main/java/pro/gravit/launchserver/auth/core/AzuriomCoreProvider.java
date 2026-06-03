@@ -158,18 +158,28 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         if (!isDatabaseMode || launcherAccessTable == null || launcherAccessTable.isBlank()) {
             return;
         }
-        String query = "SELECT `profile_uuid` FROM `" + launcherAccessTable + "` " +
-                       "WHERE (`subject_type` = 'role' AND `subject_id` = ?) " +
-                       "   OR (`subject_type` = 'player' AND `subject_id` = ?)";
+        String role   = roleName != null ? roleName : "";
+        String player = playerUuid != null ? playerUuid.toString() : "";
+        String query =
+            "SELECT `profile_uuid`, `mod_name` FROM `launcher_access` " +
+            "WHERE (`subject_type` = 'role'   AND `subject_id` = ?) " +
+            "   OR (`subject_type` = 'player' AND `subject_id` = ?)";
         try (Connection c = this.sql.getSQLConfig().getConnection();
              PreparedStatement ps = c.prepareStatement(query)) {
-            ps.setString(1, roleName != null ? roleName : "");
-            ps.setString(2, playerUuid != null ? playerUuid.toString() : "");
+            ps.setString(1, role);
+            ps.setString(2, player);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String profileUuid = rs.getString("profile_uuid");
-                    permissions.addPerm("launchserver.profile." + profileUuid + ".show");
-                    permissions.addPerm("launchserver.profile." + profileUuid + ".enter");
+                    String modName     = rs.getString("mod_name");
+                    if (modName == null) {
+                        // profile-level access
+                        permissions.addPerm("launchserver.profile." + profileUuid + ".show");
+                        permissions.addPerm("launchserver.profile." + profileUuid + ".enter");
+                    } else {
+                        // mod-level access
+                        permissions.addPerm("launcher.runtime.optionals." + profileUuid + "." + modName + ".show");
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -498,21 +508,43 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         if (!isDatabaseMode || launcherAccessTable == null) {
             return;
         }
-        String profilesTable = launcherAccessTable.replace("launcher_access", "launcher_profiles");
         try (Connection c = this.sql.getSQLConfig().getConnection()) {
+            int profileCount = 0;
+            int modCount = 0;
             for (ClientProfile profile : profiles) {
-                String upsert = "INSERT INTO `" + profilesTable + "` (`uuid`, `name`, `created_at`, `updated_at`) " +
-                                "VALUES (?, ?, NOW(), NOW()) " +
-                                "ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `updated_at` = NOW()";
-                try (PreparedStatement ps = c.prepareStatement(upsert)) {
-                    ps.setString(1, profile.getUUID().toString());
+                String profileUuid = profile.getUUID().toString();
+
+                String upsertProfile =
+                    "INSERT INTO `launcher_profiles` (`uuid`, `name`, `created_at`, `updated_at`) " +
+                    "VALUES (?, ?, NOW(), NOW()) " +
+                    "ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `updated_at` = NOW()";
+                try (PreparedStatement ps = c.prepareStatement(upsertProfile)) {
+                    ps.setString(1, profileUuid);
                     ps.setString(2, profile.getTitle());
                     ps.executeUpdate();
+                    profileCount++;
+                }
+
+                if (profile.getOptional() == null) continue;
+                for (var opt : profile.getOptional()) {
+                    if (opt == null || opt.name == null || !opt.limited) continue;
+                    String modName = opt.name.toLowerCase(java.util.Locale.ROOT);
+                    String upsertMod =
+                        "INSERT INTO `launcher_mods` (`profile_uuid`, `name`, `info`, `created_at`, `updated_at`) " +
+                        "VALUES (?, ?, ?, NOW(), NOW()) " +
+                        "ON DUPLICATE KEY UPDATE `info` = VALUES(`info`), `updated_at` = NOW()";
+                    try (PreparedStatement ps = c.prepareStatement(upsertMod)) {
+                        ps.setString(1, profileUuid);
+                        ps.setString(2, modName);
+                        ps.setString(3, opt.info);
+                        ps.executeUpdate();
+                        modCount++;
+                    }
                 }
             }
-            logger.info("Synced {} profile(s) to launcher_profiles table.", profiles.size());
+            logger.info("Synced {} profile(s), {} limited mod(s) to DB.", profileCount, modCount);
         } catch (SQLException e) {
-            logger.warn("Failed to sync profiles to DB: {}", e.getMessage());
+            logger.warn("Failed to sync profiles/mods to DB: {}", e.getMessage());
         }
     }
 
