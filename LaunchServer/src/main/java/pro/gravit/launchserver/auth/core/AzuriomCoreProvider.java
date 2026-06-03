@@ -95,6 +95,12 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
         if (sql != null) {
             sql.init(server, pair);
+            // Prevent updateAuth from clearing serverId — the default SQL does
+            // SET serverId=NULL which breaks extendedCheckServer during server switch.
+            if (sql.customUpdateAuthSQL == null) {
+                sql.updateAuthSQL = "UPDATE %s SET %s=? WHERE %s=?".formatted(
+                        sql.table, sql.accessTokenColumn, sql.uuidColumn);
+            }
             isDatabaseMode = true;
             logger.info("Azuriom provider: Database integration is ENABLED with HWID support.");
         } else {
@@ -385,7 +391,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         if (user == null) {
             return null;
         }
-        if (user.getUsername().equals(username) && user.getServerId().equals(serverID)) {
+        if (user.getUsername().equals(username) && serverID.equals(user.getServerId())) {
             return sql.createSession(user);
         }
         return null;
