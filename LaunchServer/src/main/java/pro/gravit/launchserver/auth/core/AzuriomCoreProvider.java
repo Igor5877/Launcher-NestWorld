@@ -32,6 +32,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
@@ -232,14 +234,22 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             checkHwidBan(localUser);
 
             UserSession session = sql.createSession(localUser);
+            // Issue a LaunchServer JWT so the client never stores the Azuriom Sanctum token.
+            // Azuriom invalidates its token on every site login, so storing it for auto-login
+            // would break within minutes. The JWT is signed by LaunchServer's ECDSA key and
+            // is independent of Azuriom's token lifecycle.
+            String jwtAccessToken = LegacySessionHelper.makeAccessJwtTokenFromString(
+                    localUser,
+                    LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds),
+                    server.keyAgreementManager.ecdsaPrivateKey);
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
 
             if (minecraftAccess) {
                 String minecraftAccessToken = SecurityHelper.randomStringToken();
                 sql.updateAuth(localUser, minecraftAccessToken);
-                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, jwtAccessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             } else {
-                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+                return AuthManager.AuthReport.ofOAuth(jwtAccessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             }
 
         } catch (OAuthAccessTokenExpired e) {
