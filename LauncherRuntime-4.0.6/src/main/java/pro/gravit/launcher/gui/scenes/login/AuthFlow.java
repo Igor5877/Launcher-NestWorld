@@ -15,6 +15,7 @@ import pro.gravit.launcher.base.request.auth.password.AuthMultiPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
 import pro.gravit.launcher.gui.scenes.login.methods.*;
 import pro.gravit.utils.helper.LogHelper;
+import com.azuriom.azauth.AuthClient;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -217,24 +218,63 @@ public class AuthFlow {
 
     private boolean tryOAuthLogin() {
         var application = accessor.getApplication();
-        if (application.runtimeSettings.lastAuth != null && authAvailability.name.equals(
-                application.runtimeSettings.lastAuth.name) && application.runtimeSettings.oauthAccessToken != null) {
-            if (application.runtimeSettings.oauthExpire != 0
-                    && application.runtimeSettings.oauthExpire < System.currentTimeMillis()) {
-                refreshToken();
-                return true;
-            }
-            Request.setOAuth(authAvailability.name,
-                             new AuthRequestEvent.OAuthRequestEvent(application.runtimeSettings.oauthAccessToken,
-                                                                    application.runtimeSettings.oauthRefreshToken,
-                                                                    application.runtimeSettings.oauthExpire),
-                             application.runtimeSettings.oauthExpire);
-            AuthOAuthPassword password = new AuthOAuthPassword(application.runtimeSettings.oauthAccessToken);
-            LogHelper.info("Login with OAuth AccessToken");
-            loginWithOAuth(password, authAvailability, true);
+        if (application.runtimeSettings.lastAuth == null
+                || !authAvailability.name.equals(application.runtimeSettings.lastAuth.name)
+                || application.runtimeSettings.oauthAccessToken == null) {
+            return false;
+        }
+        if (application.runtimeSettings.oauthExpire != 0
+                && application.runtimeSettings.oauthExpire < System.currentTimeMillis()) {
+            refreshToken();
             return true;
         }
-        return false;
+        String savedToken = application.runtimeSettings.oauthAccessToken;
+        String azuriomUrl = getAzuriomUrl();
+        if (azuriomUrl != null && !isJwtToken(savedToken)) {
+            // Verify directly with Azuriom so admin panel logs the client's real IP.
+            verifyWithAzuriomThenLogin(savedToken, azuriomUrl);
+        } else {
+            Request.setOAuth(authAvailability.name,
+                    new AuthRequestEvent.OAuthRequestEvent(savedToken,
+                            application.runtimeSettings.oauthRefreshToken,
+                            application.runtimeSettings.oauthExpire),
+                    application.runtimeSettings.oauthExpire);
+            LogHelper.info("Login with OAuth AccessToken");
+            loginWithOAuth(new AuthOAuthPassword(savedToken), authAvailability, true);
+        }
+        return true;
+    }
+
+    private void verifyWithAzuriomThenLogin(String savedToken, String azuriomUrl) {
+        var application = accessor.getApplication();
+        CompletableFuture.runAsync(() -> {
+            try {
+                new AuthClient(azuriomUrl).verify(savedToken);
+                // Token valid — Azuriom logged client IP. Now auth with LaunchServer.
+                Request.setOAuth(authAvailability.name,
+                        new AuthRequestEvent.OAuthRequestEvent(savedToken,
+                                application.runtimeSettings.oauthRefreshToken,
+                                application.runtimeSettings.oauthExpire),
+                        application.runtimeSettings.oauthExpire);
+                LogHelper.info("Azuriom token verified (IP logged), logging into LaunchServer");
+                loginWithOAuth(new AuthOAuthPassword(savedToken), authAvailability, true);
+            } catch (Exception e) {
+                // Token replaced (user logged in on website) — refresh to get JWT, then server reads new token.
+                LogHelper.info("Azuriom token invalid during auto-login, refreshing: {}", e.getMessage());
+                refreshToken();
+            }
+        });
+    }
+
+    private String getAzuriomUrl() {
+        if (authAvailability.details == null || authAvailability.details.isEmpty()) return null;
+        var details = authAvailability.details.get(0);
+        if (details instanceof AuthPasswordDetails pd) return pd.url;
+        return null;
+    }
+
+    private static boolean isJwtToken(String token) {
+        return token != null && token.startsWith("eyJ");
     }
 
     private void refreshToken() {
