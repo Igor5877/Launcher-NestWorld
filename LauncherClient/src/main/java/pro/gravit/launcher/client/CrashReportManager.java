@@ -2,6 +2,7 @@ package pro.gravit.launcher.client;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import pro.gravit.launcher.base.Launcher;
 import pro.gravit.launcher.base.events.request.CrashReportRequestEvent;
 import pro.gravit.launcher.base.request.CrashReportRequest;
 import pro.gravit.launcher.base.request.Request;
@@ -123,8 +124,9 @@ public class CrashReportManager {
         // Витягаємо інформацію про версії з crash report
         String gameVersion = extractGameVersion(content);
         String forgeVersion = extractForgeVersion(content);
+        String clientName = (Launcher.profile != null) ? Launcher.profile.getTitle() : "unknown";
 
-        CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion);
+        CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion, clientName);
 
         // Save for diagnostics
         try {
@@ -204,7 +206,8 @@ public class CrashReportManager {
                 String gameVersion = extractGameVersion(content);
                 String forgeVersion = extractForgeVersion(content);
                 
-                CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion);
+                String profileName = (Launcher.profile != null) ? Launcher.profile.getTitle() : "unknown";
+                CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion, profileName);
                 return request.request();
                 
             } catch (Exception e) {

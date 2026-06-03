@@ -8,13 +8,15 @@ public class CrashReportRequest extends Request<CrashReportRequestEvent> {
     public final String gameVersion;
     public final String forgeVersion;
     public final long timestamp;
-    
-    public CrashReportRequest(String filename, String content, String gameVersion, String forgeVersion) {
+    public final String clientName;
+
+    public CrashReportRequest(String filename, String content, String gameVersion, String forgeVersion, String clientName) {
         this.filename = filename;
         this.content = content;
         this.gameVersion = gameVersion;
         this.forgeVersion = forgeVersion;
         this.timestamp = System.currentTimeMillis();
+        this.clientName = clientName;
     }
     
     @Override

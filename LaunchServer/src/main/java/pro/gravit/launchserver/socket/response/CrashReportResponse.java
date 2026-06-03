@@ -22,6 +22,7 @@ public class CrashReportResponse extends SimpleResponse {
     public String gameVersion;
     public String forgeVersion;
     public long timestamp;
+    public String clientName;
     
     @Override
     public String getType() {
@@ -70,7 +71,14 @@ public class CrashReportResponse extends SimpleResponse {
         }
         
         try {
-            String clientName = client.profile == null ? "unknown" : client.profile.getTitle();
+            String clientName;
+            if (this.clientName != null && !this.clientName.isBlank()) {
+                clientName = this.clientName;
+            } else if (client.profile != null) {
+                clientName = client.profile.getTitle();
+            } else {
+                clientName = "unknown";
+            }
             // Створюємо директорію користувача
             Path userDir = crashComponent.getUserCrashDir(clientName, username);
             
