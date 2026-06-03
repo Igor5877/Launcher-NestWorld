@@ -2,6 +2,8 @@ package pro.gravit.launchserver.auth.core;
 
 import com.azuriom.azauth.AuthClient;
 import com.azuriom.azauth.exception.AuthException;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.gravit.launcher.base.ClientPermissions;
@@ -195,8 +197,10 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         try {
             var info = LegacySessionHelper.getJwtInfoFromAccessToken(accessToken, server.keyAgreementManager.ecdsaPublicKey);
             return info.uuid();
-        } catch (Exception e) {
-            throw new OAuthAccessTokenExpired("Invalid access token: " + e.getMessage());
+        } catch (ExpiredJwtException e) {
+            throw new OAuthAccessTokenExpired("JWT expired");
+        } catch (JwtException e) {
+            throw new OAuthAccessTokenExpired("Invalid JWT: " + e.getMessage());
         }
     }
 
