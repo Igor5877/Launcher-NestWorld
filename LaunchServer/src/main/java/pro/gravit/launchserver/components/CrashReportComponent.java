@@ -119,10 +119,13 @@ public class CrashReportComponent extends Component implements AutoCloseable {
     }
     
     public Path getUserCrashDir(String clientName, String username) throws IOException {
-        String safeClientName = clientName.replaceAll("[^a-zA-Z0-9.-_]", "_");
-        String safeUsername = username.replaceAll("[^a-zA-Z0-9.-_]", "_");
-        Path clientDir = crashDir.resolve(safeClientName);
-        Path userDir = clientDir.resolve(safeUsername);
+        String safeClientName = clientName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String safeUsername = username.replaceAll("[^a-zA-Z0-9._-]", "_");
+        Path clientDir = crashDir.resolve(safeClientName).normalize();
+        Path userDir = clientDir.resolve(safeUsername).normalize();
+        if (!userDir.startsWith(crashDir)) {
+            throw new IOException("Path traversal attempt detected: " + userDir);
+        }
         if (!Files.exists(userDir)) {
             Files.createDirectories(userDir);
         }
