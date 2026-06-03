@@ -9,6 +9,7 @@ import pro.gravit.launcher.base.modules.events.ClosePhase;
 import pro.gravit.launcher.base.profiles.ClientProfile;
 import pro.gravit.launchserver.auth.AuthProviderPair;
 import pro.gravit.launchserver.auth.core.RejectAuthCoreProvider;
+import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportProfileSync;
 import pro.gravit.launchserver.binary.EXELauncherBinary;
 import pro.gravit.launchserver.binary.JARLauncherBinary;
 import pro.gravit.launchserver.binary.LauncherBinary;
@@ -404,9 +405,19 @@ public final class LaunchServer implements Runnable, AutoCloseable, Reconfigurab
     public void syncProfilesDir() throws IOException {
         logger.info("Syncing profiles dir");
         config.profileProvider.sync();
+        notifyProfileSyncProviders();
         if (config.netty.sendProfileUpdatesEvent) {
             sendUpdateProfilesEvent();
         }
+    }
+
+    private void notifyProfileSyncProviders() {
+        var profiles = config.profileProvider.getProfiles();
+        config.auth.values().forEach(pair -> {
+            if (pair.core instanceof AuthSupportProfileSync syncProvider) {
+                syncProvider.syncProfiles(profiles);
+            }
+        });
     }
 
     private void sendUpdateProfilesEvent() {

@@ -17,6 +17,8 @@ import pro.gravit.launchserver.auth.AuthProviderPair;
 import pro.gravit.launchserver.auth.core.interfaces.UserHardware;
 import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportExtendedCheckServer;
 import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportHardware;
+import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportProfileSync;
+import pro.gravit.launcher.base.profiles.ClientProfile;
 import pro.gravit.launchserver.helper.LegacySessionHelper;
 import pro.gravit.launchserver.manangers.AuthManager;
 import pro.gravit.launchserver.socket.Client;
@@ -36,7 +38,7 @@ import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupportHardware, AuthSupportExtendedCheckServer {
+public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupportHardware, AuthSupportExtendedCheckServer, AuthSupportProfileSync {
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
     public MySQLCoreProvider sql;
@@ -489,6 +491,29 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             return;
         }
         sql.unbanHardware(hardware);
+    }
+
+    @Override
+    public void syncProfiles(java.util.Set<ClientProfile> profiles) {
+        if (!isDatabaseMode || launcherAccessTable == null) {
+            return;
+        }
+        String profilesTable = launcherAccessTable.replace("launcher_access", "launcher_profiles");
+        try (Connection c = this.sql.getSQLConfig().getConnection()) {
+            for (ClientProfile profile : profiles) {
+                String upsert = "INSERT INTO `" + profilesTable + "` (`uuid`, `name`, `created_at`, `updated_at`) " +
+                                "VALUES (?, ?, NOW(), NOW()) " +
+                                "ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `updated_at` = NOW()";
+                try (PreparedStatement ps = c.prepareStatement(upsert)) {
+                    ps.setString(1, profile.getUUID().toString());
+                    ps.setString(2, profile.getTitle());
+                    ps.executeUpdate();
+                }
+            }
+            logger.info("Synced {} profile(s) to launcher_profiles table.", profiles.size());
+        } catch (SQLException e) {
+            logger.warn("Failed to sync profiles to DB: {}", e.getMessage());
+        }
     }
 
     @Override

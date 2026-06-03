@@ -7,7 +7,6 @@ use Azuriom\Models\Role;
 use Azuriom\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class LauncherController extends Controller
 {
@@ -41,32 +40,6 @@ class LauncherController extends Controller
             'profiles'    => $profilesWithAccess,
             'allRoles'    => $allRoles,
         ]);
-    }
-
-    public function createProfile(Request $request)
-    {
-        $data = $request->validate([
-            'uuid' => ['required', 'regex:/^[0-9a-f\-]{36}$/i',
-                        Rule::unique('launcher_profiles', 'uuid')],
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        DB::table('launcher_profiles')->insert([
-            'uuid'        => $data['uuid'],
-            'name'        => $data['name'],
-            'description' => $data['description'] ?? null,
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
-
-        return back()->with('success', 'Профіль "' . $data['name'] . '" додано.');
-    }
-
-    public function deleteProfile(string $uuid)
-    {
-        DB::table('launcher_profiles')->where('uuid', $uuid)->delete();
-        return back()->with('success', 'Профіль видалено.');
     }
 
     public function grantRole(Request $request)

@@ -19,159 +19,116 @@
         </div>
     @endif
 
-    <div class="row">
+    @if($profiles->isEmpty())
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Профілі ще не синхронізовані. Запустіть лаунчер-сервер — він автоматично заповнить список.
+        </div>
+    @else
+        <div class="row g-4">
+            @foreach($profiles as $p)
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-semibold fs-5">{{ $p['name'] }}</span>
+                            <span class="badge bg-secondary ms-2 font-monospace fw-normal">{{ $p['uuid'] }}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
 
-        {{-- ===== ЛІВА КОЛОНКА: список профілів ===== --}}
-        <div class="col-lg-4">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold">Профілі лаунчера</div>
-                <div class="card-body">
-                    @forelse($profiles as $p)
-                        <div class="d-flex justify-content-between align-items-start border-bottom py-2">
-                            <div>
-                                <div class="fw-semibold">{{ $p['name'] }}</div>
-                                <small class="text-muted font-monospace">{{ $p['uuid'] }}</small>
-                                @if($p['description'])
-                                    <div><small class="text-secondary">{{ $p['description'] }}</small></div>
-                                @endif
-                            </div>
-                            <form method="POST"
-                                  action="{{ route('launcher.admin.profiles.delete', $p['uuid']) }}"
-                                  onsubmit="return confirm('Видалити профіль та весь його доступ?')">
-                                @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger">✕</button>
-                            </form>
-                        </div>
-                    @empty
-                        <p class="text-muted mb-0">Профілів ще немає.</p>
-                    @endforelse
-                </div>
-            </div>
-
-            {{-- Додати профіль --}}
-            <div class="card shadow-sm">
-                <div class="card-header fw-semibold">Додати профіль</div>
-                <div class="card-body">
-                    <form method="POST" action="{{ route('launcher.admin.profiles.create') }}">
-                        @csrf
-                        <div class="mb-2">
-                            <label class="form-label small">UUID профілю</label>
-                            <input type="text" name="uuid" class="form-control form-control-sm font-monospace"
-                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                                   value="{{ old('uuid') }}" required>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label small">Назва</label>
-                            <input type="text" name="name" class="form-control form-control-sm"
-                                   placeholder="Survival, VIP, Creative…"
-                                   value="{{ old('name') }}" required>
-                        </div>
+                        {{-- Поточний доступ --}}
+                        @if($p['roles']->isNotEmpty() || $p['players']->isNotEmpty())
                         <div class="mb-3">
-                            <label class="form-label small">Опис (необов'язково)</label>
-                            <input type="text" name="description" class="form-control form-control-sm"
-                                   value="{{ old('description') }}">
+                            <div class="small fw-semibold text-uppercase text-muted mb-2">Поточний доступ</div>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach($p['roles'] as $r)
+                                    <span class="badge bg-primary d-flex align-items-center gap-1 py-2 px-3">
+                                        <i class="bi bi-people-fill"></i>
+                                        <span>{{ $r->subject_id }}</span>
+                                        <form method="POST"
+                                              action="{{ route('launcher.admin.access.revoke', $r->id) }}"
+                                              class="d-inline ms-1">
+                                            @csrf @method('DELETE')
+                                            <button type="submit"
+                                                    class="btn-close btn-close-white"
+                                                    style="font-size:.55rem"
+                                                    title="Відкликати доступ"></button>
+                                        </form>
+                                    </span>
+                                @endforeach
+
+                                @foreach($p['players'] as $pl)
+                                    <span class="badge bg-success d-flex align-items-center gap-1 py-2 px-3">
+                                        <i class="bi bi-person-fill"></i>
+                                        <span>{{ $pl->display }}</span>
+                                        <form method="POST"
+                                              action="{{ route('launcher.admin.access.revoke', $pl->id) }}"
+                                              class="d-inline ms-1">
+                                            @csrf @method('DELETE')
+                                            <button type="submit"
+                                                    class="btn-close btn-close-white"
+                                                    style="font-size:.55rem"
+                                                    title="Відкликати доступ"></button>
+                                        </form>
+                                    </span>
+                                @endforeach
+                            </div>
                         </div>
-                        <button class="btn btn-primary btn-sm w-100">Додати профіль</button>
-                    </form>
+                        @else
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-lock me-1"></i> Ніхто ще не має доступу до цього профілю.
+                            </p>
+                        @endif
+
+                        {{-- Форми надання доступу --}}
+                        <div class="row g-2">
+                            <div class="col-sm-6">
+                                <form method="POST" action="{{ route('launcher.admin.access.role') }}"
+                                      class="border rounded p-3 bg-light h-100">
+                                    @csrf
+                                    <input type="hidden" name="profile_uuid" value="{{ $p['uuid'] }}">
+                                    <div class="small fw-semibold mb-2">
+                                        <i class="bi bi-people-fill text-primary"></i>
+                                        Надати доступ ролі
+                                    </div>
+                                    <div class="input-group input-group-sm">
+                                        <select name="role_name" class="form-select" required>
+                                            <option value="">— оберіть роль —</option>
+                                            @foreach($allRoles as $role)
+                                                <option value="{{ $role->name }}">{{ $role->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button class="btn btn-primary">Надати</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="col-sm-6">
+                                <form method="POST" action="{{ route('launcher.admin.access.player') }}"
+                                      class="border rounded p-3 bg-light h-100">
+                                    @csrf
+                                    <input type="hidden" name="profile_uuid" value="{{ $p['uuid'] }}">
+                                    <div class="small fw-semibold mb-2">
+                                        <i class="bi bi-person-fill text-success"></i>
+                                        Надати доступ гравцю
+                                    </div>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" name="player_name"
+                                               class="form-control"
+                                               placeholder="Нікнейм гравця" required>
+                                        <button class="btn btn-success">Надати</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
+            @endforeach
         </div>
+    @endif
 
-        {{-- ===== ПРАВА КОЛОНКА: управління доступом ===== --}}
-        <div class="col-lg-8">
-
-            @forelse($profiles as $p)
-            <div class="card shadow-sm mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold">{{ $p['name'] }}</span>
-                    <small class="text-muted font-monospace">{{ $p['uuid'] }}</small>
-                </div>
-                <div class="card-body">
-
-                    {{-- Поточний доступ --}}
-                    @if($p['roles']->isNotEmpty() || $p['players']->isNotEmpty())
-                    <div class="mb-3">
-                        <div class="small fw-semibold text-uppercase text-muted mb-1">Поточний доступ</div>
-                        <div class="d-flex flex-wrap gap-2">
-                            @foreach($p['roles'] as $r)
-                                <span class="badge bg-primary d-flex align-items-center gap-1">
-                                    <i class="bi bi-people-fill"></i> {{ $r->subject_id }}
-                                    <form method="POST"
-                                          action="{{ route('launcher.admin.access.revoke', $r->id) }}"
-                                          class="d-inline ms-1">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn-close btn-close-white"
-                                                style="font-size:.6rem"
-                                                title="Відкликати"></button>
-                                    </form>
-                                </span>
-                            @endforeach
-                            @foreach($p['players'] as $pl)
-                                <span class="badge bg-success d-flex align-items-center gap-1">
-                                    <i class="bi bi-person-fill"></i> {{ $pl->display }}
-                                    <form method="POST"
-                                          action="{{ route('launcher.admin.access.revoke', $pl->id) }}"
-                                          class="d-inline ms-1">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn-close btn-close-white"
-                                                style="font-size:.6rem"
-                                                title="Відкликати"></button>
-                                    </form>
-                                </span>
-                            @endforeach
-                        </div>
-                    </div>
-                    @else
-                        <p class="text-muted small">Ніхто ще не має доступу до цього профілю.</p>
-                    @endif
-
-                    <div class="row g-2">
-                        {{-- Додати роль --}}
-                        <div class="col-sm-6">
-                            <form method="POST" action="{{ route('launcher.admin.access.role') }}"
-                                  class="border rounded p-2 bg-light">
-                                @csrf
-                                <input type="hidden" name="profile_uuid" value="{{ $p['uuid'] }}">
-                                <div class="small fw-semibold mb-1">
-                                    <i class="bi bi-people-fill text-primary"></i> Дати доступ ролі
-                                </div>
-                                <div class="input-group input-group-sm">
-                                    <select name="role_name" class="form-select form-select-sm" required>
-                                        <option value="">— оберіть роль —</option>
-                                        @foreach($allRoles as $role)
-                                            <option value="{{ $role->name }}">{{ $role->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button class="btn btn-primary btn-sm">Дати</button>
-                                </div>
-                            </form>
-                        </div>
-
-                        {{-- Додати гравця --}}
-                        <div class="col-sm-6">
-                            <form method="POST" action="{{ route('launcher.admin.access.player') }}"
-                                  class="border rounded p-2 bg-light">
-                                @csrf
-                                <input type="hidden" name="profile_uuid" value="{{ $p['uuid'] }}">
-                                <div class="small fw-semibold mb-1">
-                                    <i class="bi bi-person-fill text-success"></i> Дати доступ гравцю
-                                </div>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" name="player_name" class="form-control form-control-sm"
-                                           placeholder="Нікнейм гравця" required>
-                                    <button class="btn btn-success btn-sm">Дати</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-            @empty
-                <div class="alert alert-info">Спочатку додайте профілі зліва.</div>
-            @endforelse
-
-        </div>
-    </div>
 </div>
 @endsection
