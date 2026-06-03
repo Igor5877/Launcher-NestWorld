@@ -250,6 +250,11 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             }
 
         } catch (OAuthAccessTokenExpired e) {
+            if (isSanctumToken(accessToken)) {
+                // Sanctum token replaced (user logged into Azuriom website) —
+                // tell client to refresh via oauthRefreshToken, which yields a JWT.
+                throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
+            }
             throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
         } catch (pro.gravit.launchserver.auth.AuthException e) {
             throw e;
