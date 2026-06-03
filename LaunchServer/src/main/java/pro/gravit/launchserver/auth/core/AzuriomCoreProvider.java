@@ -25,14 +25,10 @@ import pro.gravit.launchserver.socket.response.auth.AuthResponse;
 import pro.gravit.utils.helper.SecurityHelper;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,7 +37,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupportHardware, AuthSupportExtendedCheckServer {
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
-    public String tokensTable = "personal_access_tokens";
+    public String azuriomTokenColumn = "access_token";
     public MySQLCoreProvider sql;
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
@@ -143,89 +139,80 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         return new OfflineUserSession(user);
     }
 
-    // Verifies a Sanctum token (format: "{id}|{plaintext}") against the shared database.
+    // Verifies an Azuriom access_token against the shared database (stored as plaintext).
     // Returns the user UUID on success, throws OAuthAccessTokenExpired on failure.
     private UUID verifyTokenFromDatabase(String accessToken) throws OAuthAccessTokenExpired {
         if (!isDatabaseMode) {
             throw new OAuthAccessTokenExpired("Database mode is disabled, cannot verify token via SQL");
         }
-        String[] parts = accessToken.split("\\|", 2);
-        if (parts.length != 2) {
-            throw new OAuthAccessTokenExpired("Invalid token format");
-        }
-        long tokenId;
-        try {
-            tokenId = Long.parseLong(parts[0]);
-        } catch (NumberFormatException e) {
-            throw new OAuthAccessTokenExpired("Invalid token id");
-        }
-        String plaintext = parts[1];
-        String hexHash;
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            hexHash = HexFormat.of().formatHex(md.digest(plaintext.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new OAuthAccessTokenExpired("SHA-256 not available");
-        }
-        String sql_query = String.format(
-            "SELECT u.%s FROM %s u INNER JOIN %s t ON u.id = t.tokenable_id" +
-            " WHERE t.id = ? AND t.token = ? AND (t.expires_at IS NULL OR t.expires_at > NOW())",
-            sql.uuidColumn, sql.table, tokensTable);
-        String updateSql = "UPDATE " + tokensTable + " SET last_used_at = NOW() WHERE id = ?";
-        try (Connection conn = sql.mySQLHolder.getConnection()) {
-            UUID userUuid;
-            try (PreparedStatement stmt = conn.prepareStatement(sql_query)) {
-                stmt.setLong(1, tokenId);
-                stmt.setString(2, hexHash);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (!rs.next()) {
-                        throw new OAuthAccessTokenExpired("Token not found or expired");
-                    }
-                    userUuid = UUID.fromString(rs.getString(sql.uuidColumn));
+        String query = "SELECT %s FROM %s WHERE %s = ?".formatted(sql.uuidColumn, sql.table, azuriomTokenColumn);
+        try (Connection conn = sql.mySQLHolder.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, accessToken);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    throw new OAuthAccessTokenExpired("Token not found");
                 }
+                return UUID.fromString(rs.getString(sql.uuidColumn));
             }
-            try (PreparedStatement upd = conn.prepareStatement(updateSql)) {
-                upd.setLong(1, tokenId);
-                upd.executeUpdate();
-            }
-            return userUuid;
         } catch (SQLException e) {
             logger.error("SQL error during token verification", e);
             throw new OAuthAccessTokenExpired("Database error during token verification");
         }
     }
 
-    // Resolves a UUID from either a Sanctum token ("{id}|{plaintext}") or a LaunchServer JWT.
-    // After refreshAccessToken() the stored oauthAccessToken becomes a JWT, so both formats must be handled.
-    private UUID resolveUuidFromAccessToken(String accessToken) throws OAuthAccessTokenExpired {
-        if (isSanctumToken(accessToken)) {
-            return verifyTokenFromDatabase(accessToken);
+    // Reads the current Azuriom access_token for a user by UUID (plaintext, stored in users table).
+    // Used during JWT fallback to restore the Azuriom token for the client.
+    private String readAzuriomTokenForUser(UUID uuid) {
+        String query = "SELECT %s FROM %s WHERE %s = ?".formatted(azuriomTokenColumn, sql.table, sql.uuidColumn);
+        try (Connection conn = sql.mySQLHolder.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, uuid.toString());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getString(azuriomTokenColumn);
+            }
+        } catch (SQLException e) {
+            logger.error("SQL error reading Azuriom token for user {}", uuid, e);
         }
-        try {
-            var info = LegacySessionHelper.getJwtInfoFromAccessToken(accessToken, server.keyAgreementManager.ecdsaPublicKey);
-            return info.uuid();
-        } catch (ExpiredJwtException e) {
-            throw new OAuthAccessTokenExpired("JWT expired");
-        } catch (JwtException e) {
-            throw new OAuthAccessTokenExpired("Invalid JWT: " + e.getMessage());
-        }
+        return null;
     }
 
-    private static boolean isSanctumToken(String token) {
-        int pipe = token.indexOf('|');
-        if (pipe <= 0) return false;
-        try {
-            Long.parseLong(token.substring(0, pipe));
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
+    // Resolves a UUID from either an Azuriom access_token (plaintext in DB) or a LaunchServer JWT.
+    // After refreshAccessToken() the stored oauthAccessToken becomes a JWT, so both formats must be handled.
+    private UUID resolveUuidFromAccessToken(String accessToken) throws OAuthAccessTokenExpired {
+        if (isJwtToken(accessToken)) {
+            try {
+                var info = LegacySessionHelper.getJwtInfoFromAccessToken(accessToken, server.keyAgreementManager.ecdsaPublicKey);
+                return info.uuid();
+            } catch (ExpiredJwtException e) {
+                throw new OAuthAccessTokenExpired("JWT expired");
+            } catch (JwtException e) {
+                throw new OAuthAccessTokenExpired("Invalid JWT: " + e.getMessage());
+            }
         }
+        return verifyTokenFromDatabase(accessToken);
+    }
+
+    // JWT tokens from LaunchServer always start with the base64url-encoded header "eyJ" ({"alg":...}).
+    private static boolean isJwtToken(String token) {
+        return token != null && token.startsWith("eyJ");
     }
 
     @Override
     public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
         try {
+            boolean isJwt = isJwtToken(accessToken);
             UUID userUuid = resolveUuidFromAccessToken(accessToken);
+
+            // After JWT fallback: read the current Azuriom token from DB and give it back to client.
+            // Client stores it, so next session uses the fresh Azuriom token (not the JWT).
+            String oauthToken = accessToken;
+            if (isJwt) {
+                String azuriomToken = readAzuriomTokenForUser(userUuid);
+                if (azuriomToken != null && !azuriomToken.isEmpty()) {
+                    oauthToken = azuriomToken;
+                }
+            }
 
             boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
 
@@ -244,17 +231,17 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             if (minecraftAccess) {
                 String minecraftAccessToken = SecurityHelper.randomStringToken();
                 sql.updateAuth(localUser, minecraftAccessToken);
-                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, oauthToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             } else {
-                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+                return AuthManager.AuthReport.ofOAuth(oauthToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             }
 
         } catch (OAuthAccessTokenExpired e) {
-            if (isSanctumToken(accessToken)) {
-                // Sanctum token replaced (user logged into Azuriom website) —
-                // tell client to refresh via oauthRefreshToken, which yields a JWT.
+            if (!isJwtToken(accessToken)) {
+                // Azuriom token replaced (user logged in on website) — client refreshes via oauthRefreshToken.
                 throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
             }
+            // JWT expired/invalid — user must log in again.
             throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
         } catch (pro.gravit.launchserver.auth.AuthException e) {
             throw e;
