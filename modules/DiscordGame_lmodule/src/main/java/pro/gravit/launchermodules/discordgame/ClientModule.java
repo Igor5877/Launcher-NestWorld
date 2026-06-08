@@ -1,0 +1,102 @@
+package pro.gravit.launchermodules.discordgame;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import pro.gravit.launcher.base.modules.LauncherInitContext;
+import pro.gravit.launcher.base.modules.LauncherModule;
+import pro.gravit.launcher.base.modules.LauncherModuleInfo;
+import pro.gravit.launcher.base.request.Request;
+import pro.gravit.launcher.client.events.ClientExitPhase;
+import pro.gravit.launcher.client.events.ClientProcessLaunchEvent;
+import pro.gravit.launcher.client.events.ClientUnlockConsoleEvent;
+import pro.gravit.launcher.runtime.client.events.ClientEngineInitPhase;
+import pro.gravit.launcher.runtime.client.events.ClientProcessBuilderParamsWrittedEvent;
+import pro.gravit.launchermodules.discordgame.commands.DiscordCommand;
+import pro.gravit.utils.Version;
+
+public class ClientModule extends LauncherModule {
+    private static final Logger logger = LoggerFactory.getLogger(ClientModule.class);
+    public static final Version version = new Version(1, 1, 0, 1, Version.Type.LTS);
+    private static final Object lock = new Object();
+    public static Config config;
+    public static ScopeConfig loginScopeConfig;
+    public static ScopeConfig authorizedScopeConfig;
+    public static ScopeConfig clientScopeConfig;
+    private static volatile boolean isClosed = false;
+
+    public ClientModule() {
+        // LauncherModuleInfoBuilder відсутній у локальному проекті — використовуємо конструктор LauncherModuleInfo напряму
+        super(new LauncherModuleInfo("DiscordGame", version, new String[]{"ClientLauncherCore"}));
+    }
+
+    /**
+     * @param flag якщо true — встановлює isClosed в true
+     * @return поточне значення isClosed до зміни
+     */
+    public static boolean isClosed(boolean flag) {
+        boolean ret;
+        synchronized (lock) {
+            ret = isClosed;
+            if (flag) isClosed = true;
+            lock.notify();
+        }
+        return ret;
+    }
+
+    @Override
+    public void init(LauncherInitContext initContext) {
+        config = new Config();
+        loginScopeConfig      = new ScopeConfig(config.scopes.get("login"));
+        authorizedScopeConfig = new ScopeConfig(config.scopes.get("authorized"));
+        clientScopeConfig     = new ScopeConfig(config.scopes.get("client"));
+
+        registerEvent(this::clientInit,         ClientProcessLaunchEvent.class);
+        registerEvent(this::launcherInit,        ClientEngineInitPhase.class);
+        registerEvent(this::exitHandler,         ClientExitPhase.class);
+        registerEvent(this::exitByStartClient,   ClientProcessBuilderParamsWrittedEvent.class);
+        registerEvent(this::unlock,              ClientUnlockConsoleEvent.class);
+    }
+
+    /** Викликається, коли лаунчер запускає клієнт Minecraft */
+    private void clientInit(ClientProcessLaunchEvent phase) {
+        DiscordBridge.activityService.updateClientStage(phase.params);
+        try {
+            DiscordBridge.init(config.appId, true);
+            RequestEventWatcher.INSTANCE = new RequestEventWatcher(true);
+            Request.getRequestService().registerEventHandler(RequestEventWatcher.INSTANCE);
+        } catch (Throwable e) {
+            logger.error("", e);
+        }
+    }
+
+    /** Реєструє консольну команду /discord */
+    private void unlock(ClientUnlockConsoleEvent event) {
+        event.handler.registerCommand("discord", new DiscordCommand());
+    }
+
+    /** Викликається при ініціалізації GUI лаунчера */
+    private void launcherInit(ClientEngineInitPhase phase) {
+        DiscordBridge.activityService.updateLoginStage();
+        try {
+            DiscordBridge.init(config.appId, false);
+            RequestEventWatcher.INSTANCE = new RequestEventWatcher(false);
+            Request.getRequestService().registerEventHandler(RequestEventWatcher.INSTANCE);
+        } catch (Throwable e) {
+            logger.error("", e);
+        }
+    }
+
+    /** Викликається при виході з лаунчера */
+    private void exitHandler(ClientExitPhase phase) {
+        if (isClosed(true)) return;
+        if (RequestEventWatcher.INSTANCE != null) {
+            Request.getRequestService().unregisterEventHandler(RequestEventWatcher.INSTANCE);
+        }
+        DiscordBridge.close();
+    }
+
+    /** Викликається перед запуском процесу клієнта (params вже записані) */
+    private void exitByStartClient(ClientProcessBuilderParamsWrittedEvent event) {
+        // Лаунчер завершує роботу після передачі параметрів клієнту
+    }
+}

@@ -1,0 +1,52 @@
+plugins {
+    id 'java'
+}
+
+group = 'pro.gravit.launchermodules'
+version = '1.1.0.1'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+    // JitPack — основне джерело discord-game-sdk4j
+    maven { url 'https://jitpack.io' }
+    // Дзеркало GravitLauncher (якщо JitPack недоступний)
+    maven {
+        url 'https://maven.gravitlauncher.com/'
+    }
+}
+
+dependencies {
+    compileOnly project(':Launcher')
+    compileOnly project(':LauncherCore')
+    compileOnly project(':LauncherAPI')
+    compileOnly project(':LauncherClient')
+
+    // Discord Game SDK4J v0.5.x (стара API з native libs).
+    // Увага: версія 1.0.0+ має абсолютно іншу API — НЕ сумісна з цим кодом.
+    // Якщо v0.5.5 недоступна — знайдіть актуальну 0.5.x-версію на: https://github.com/JnCrMx/discord-game-sdk4j/releases
+    implementation('com.github.JnCrMx:discord-game-sdk4j:v0.5.5') {
+        exclude group: 'com.google.code.gson', module: 'gson'
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+            'Module-Main-Class': 'pro.gravit.launchermodules.discordgame.ClientModule',
+            'Module-Config-Class': 'pro.gravit.launchermodules.discordgame.Config',
+            'Module-Config-Name': 'DiscordGame'
+        )
+    }
+
+    // Включаємо discord-game-sdk4j в fat JAR разом із нативними бібліотеками
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
