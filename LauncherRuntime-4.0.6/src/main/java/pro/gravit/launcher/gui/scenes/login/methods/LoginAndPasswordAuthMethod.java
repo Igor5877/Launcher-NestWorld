@@ -1,6 +1,11 @@
 package pro.gravit.launcher.gui.scenes.login.methods;
 
+import com.azuriom.azauth.AuthClient;
+import com.azuriom.azauth.AuthResult;
+import com.azuriom.azauth.exception.AuthException;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
+import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
 import pro.gravit.launcher.gui.JavaFXApplication;
 import pro.gravit.launcher.gui.helper.LookupHelper;
 import pro.gravit.launcher.gui.impl.AbstractVisualComponent;
@@ -18,6 +23,7 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
     private final LoginAndPasswordOverlay overlay;
     private final JavaFXApplication application;
     private final LoginScene.LoginSceneAccessor accessor;
+    private String pendingUrl;
 
     public LoginAndPasswordAuthMethod(LoginScene.LoginSceneAccessor accessor) {
         this.accessor = accessor;
@@ -54,6 +60,7 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
 
     @Override
     public CompletableFuture<AuthFlow.LoginAndPasswordResult> auth(AuthPasswordDetails details) {
+        pendingUrl = details.url;
         overlay.future = new CompletableFuture<>();
         String login = overlay.login.getText();
         AuthRequest.AuthPasswordInterface password;
@@ -67,7 +74,46 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
 
     @Override
     public void onAuthClicked() {
-        overlay.future.complete(overlay.getResult());
+        if (pendingUrl == null) {
+            overlay.future.complete(overlay.getResult());
+            return;
+        }
+        String login = overlay.login.getText();
+        String rawPassword = overlay.password.getText();
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                AuthClient azClient = new AuthClient(pendingUrl);
+                AuthResult<com.azuriom.azauth.model.User> result = azClient.login(login, rawPassword);
+                if (result.isPending() && result.asPending().require2fa()) {
+                    CompletableFuture<String> totpFuture = new CompletableFuture<>();
+                    ContextHelper.runInFxThreadStatic(() -> {
+                        TextInputDialog dialog = new TextInputDialog();
+                        dialog.setHeaderText(application.getTranslation("runtime.scenes.login.totp"));
+                        dialog.setContentText("TOTP:");
+                        dialog.showAndWait().ifPresentOrElse(
+                            totpFuture::complete,
+                            () -> totpFuture.completeExceptionally(new UserAuthCanceledException())
+                        );
+                    });
+                    String totpCode = totpFuture.join();
+                    result = azClient.login(login, rawPassword, totpCode);
+                }
+                if (!result.isSuccess()) {
+                    throw new AuthException("Authentication failed");
+                }
+                String accessToken = result.getSuccessResult().getAccessToken();
+                return new AuthFlow.LoginAndPasswordResult(login, new AuthOAuthPassword(accessToken));
+            } catch (AuthException e) {
+                throw new RuntimeException(e.getMessage(), e);
+            }
+        }).whenComplete((res, ex) -> {
+            if (ex != null) {
+                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                overlay.future.completeExceptionally(cause);
+            } else {
+                overlay.future.complete(res);
+            }
+        });
     }
 
     @Override
