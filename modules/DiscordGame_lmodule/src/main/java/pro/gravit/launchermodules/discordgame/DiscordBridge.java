@@ -22,7 +22,10 @@ public class DiscordBridge {
 
     private static final Logger logger = LoggerFactory.getLogger(DiscordBridge.class);
 
-    // Singleton сервісу активності — реалізований у модулі, оскільки його немає в LauncherClient
+    /**
+     * Singleton сервісу активності — реалізований у модулі,
+     * оскільки DiscordActivityService відсутній у локальному LauncherClient.
+     */
     public static final DiscordActivityService activityService = new DiscordActivityService();
 
     private static Thread thread;
@@ -38,7 +41,7 @@ public class DiscordBridge {
 
         params = new CreateParams();
         params.setClientID(appId);
-        // CreateParams.getDefaultFlags() | 1 — дозволяє запуск без відкритого Discord
+        // flags | 1 — дозволяє запуск без відкритого Discord (NoRequireDiscord)
         params.setFlags(CreateParams.getDefaultFlags() | 1);
 
         try {

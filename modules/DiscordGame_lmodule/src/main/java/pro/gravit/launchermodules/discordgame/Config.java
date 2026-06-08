@@ -20,14 +20,20 @@ public class Config {
         config.scopes = new LinkedHashMap<>();
 
         config.scopes.put("login",
-                new ScopeConfig("Кращий проект Minecraft", "Авторизується",
-                        "large", "small", "Everything", "Everything", false, "Site", "https://example.com", false, "Forum", "https://example.com").toMap());
+                new ScopeConfig("Найкращий проект Minecraft", "Авторизується",
+                        "large", "small", "Everything", "Everything",
+                        false, "Site", "https://example.com",
+                        false, "Forum", "https://example.com").toMap());
         config.scopes.put("authorized",
-                new ScopeConfig("Кращий проект Minecraft", "Вибирає сервер",
-                        "large", "small", "Everything", "Everything", false, "Site", "https://example.com", false, "Forum", "https://example.com").toMap());
+                new ScopeConfig("Найкращий проект Minecraft", "Вибирає сервер",
+                        "large", "small", "Everything", "Everything",
+                        false, "Site", "https://example.com",
+                        false, "Forum", "https://example.com").toMap());
         config.scopes.put("client",
-                new ScopeConfig("Кращий проект Minecraft", "Грає на %profileName%",
-                        "large", "small", "Everything", "Everything", false, "Site", "https://example.com", false, "Forum", "https://example.com").toMap());
+                new ScopeConfig("Найкращий проект Minecraft", "Грає на %profileName%",
+                        "large", "small", "Everything", "Everything",
+                        false, "Site", "https://example.com",
+                        false, "Forum", "https://example.com").toMap());
 
         return config;
     }

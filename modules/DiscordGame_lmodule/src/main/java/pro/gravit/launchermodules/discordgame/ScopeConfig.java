@@ -3,99 +3,91 @@ package pro.gravit.launchermodules.discordgame;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Конфігурація одного стану Discord Rich Presence (login / authorized / client).
+ * Назви полів точно відповідають ключам у JSON-конфігурації (@LauncherInject scopes).
+ */
 public class ScopeConfig {
     private final String details;
     private final String state;
-    private final String largeImage;
-    private final String smallImage;
-    private final String largeText;
-    private final String smallText;
-    private final boolean button1Enable;
-    private final String button1Name;
-    private final String button1Url;
-    private final boolean button2Enable;
-    private final String button2Name;
-    private final String button2Url;
+    private final String largeImageKey;
+    private final String smallImageKey;
+    private final String largeImageText;
+    private final String smallImageText;
+    private final boolean firstButtonEnable;
+    private final String firstButtonName;
+    private final String firstButtonUrl;
+    private final boolean secondButtonEnable;
+    private final String secondButtonName;
+    private final String secondButtonUrl;
 
     public ScopeConfig(String details, String state,
-                       String largeImage, String smallImage,
-                       String largeText, String smallText,
-                       boolean button1Enable, String button1Name, String button1Url,
-                       boolean button2Enable, String button2Name, String button2Url) {
+                       String largeImageKey, String smallImageKey,
+                       String largeImageText, String smallImageText,
+                       boolean firstButtonEnable, String firstButtonName, String firstButtonUrl,
+                       boolean secondButtonEnable, String secondButtonName, String secondButtonUrl) {
         this.details = details;
         this.state = state;
-        this.largeImage = largeImage;
-        this.smallImage = smallImage;
-        this.largeText = largeText;
-        this.smallText = smallText;
-        this.button1Enable = button1Enable;
-        this.button1Name = button1Name;
-        this.button1Url = button1Url;
-        this.button2Enable = button2Enable;
-        this.button2Name = button2Name;
-        this.button2Url = button2Url;
+        this.largeImageKey = largeImageKey;
+        this.smallImageKey = smallImageKey;
+        this.largeImageText = largeImageText;
+        this.smallImageText = smallImageText;
+        this.firstButtonEnable = firstButtonEnable;
+        this.firstButtonName = firstButtonName;
+        this.firstButtonUrl = firstButtonUrl;
+        this.secondButtonEnable = secondButtonEnable;
+        this.secondButtonName = secondButtonName;
+        this.secondButtonUrl = secondButtonUrl;
     }
 
     public ScopeConfig(Map<String, String> map) {
-        this.details = map.get("details");
-        this.state = map.get("state");
-        this.largeImage = map.get("largeImage");
-        this.smallImage = map.get("smallImage");
-        this.largeText = map.get("largeText");
-        this.smallText = map.get("smallText");
-        this.button1Enable = Boolean.parseBoolean(map.get("button1Enable"));
-        this.button1Name = map.get("button1Name");
-        this.button1Url = map.get("button1Url");
-        this.button2Enable = Boolean.parseBoolean(map.get("button2Enable"));
-        this.button2Name = map.get("button2Name");
-        this.button2Url = map.get("button2Url");
+        this.details          = map.get("details");
+        this.state            = map.get("state");
+        this.largeImageKey    = map.get("largeImageKey");
+        this.smallImageKey    = map.get("smallImageKey");
+        this.largeImageText   = map.get("largeImageText");
+        this.smallImageText   = map.get("smallImageText");
+        this.firstButtonEnable  = Boolean.parseBoolean(map.get("firstButtonEnable"));
+        this.firstButtonName    = map.get("firstButtonName");
+        this.firstButtonUrl     = map.get("firstButtonUrl");
+        this.secondButtonEnable = Boolean.parseBoolean(map.get("secondButtonEnable"));
+        this.secondButtonName   = map.get("secondButtonName");
+        this.secondButtonUrl    = map.get("secondButtonUrl");
     }
 
-    public String getDetails() { return details; }
-    public String getState() { return state; }
-    public String getLargeImage() { return largeImage; }
-    public String getSmallImage() { return smallImage; }
-    public String getLargeText() { return largeText; }
-    public String getSmallText() { return smallText; }
-    public boolean isButton1Enable() { return button1Enable; }
-    public String getButton1Name() { return button1Name; }
-    public String getButton1Url() { return button1Url; }
-    public boolean isButton2Enable() { return button2Enable; }
-    public String getButton2Name() { return button2Name; }
-    public String getButton2Url() { return button2Url; }
+    public String getDetails()        { return details; }
+    public String getState()          { return state; }
+    public String getLargeImageKey()  { return largeImageKey; }
+    public String getSmallImageKey()  { return smallImageKey; }
+    public String getLargeImageText() { return largeImageText; }
+    public String getSmallImageText() { return smallImageText; }
+    public boolean isFirstButtonEnable()  { return firstButtonEnable; }
+    public String getFirstButtonName()    { return firstButtonName; }
+    public String getFirstButtonUrl()     { return firstButtonUrl; }
+    public boolean isSecondButtonEnable() { return secondButtonEnable; }
+    public String getSecondButtonName()   { return secondButtonName; }
+    public String getSecondButtonUrl()    { return secondButtonUrl; }
 
     public Map<String, String> toMap() {
         Map<String, String> map = new LinkedHashMap<>();
-        map.put("details", details);
-        map.put("state", state);
-        map.put("largeImage", largeImage);
-        map.put("smallImage", smallImage);
-        map.put("largeText", largeText);
-        map.put("smallText", smallText);
-        map.put("button1Enable", String.valueOf(button1Enable));
-        map.put("button1Name", button1Name);
-        map.put("button1Url", button1Url);
-        map.put("button2Enable", String.valueOf(button2Enable));
-        map.put("button2Name", button2Name);
-        map.put("button2Url", button2Url);
+        map.put("details",          details);
+        map.put("state",            state);
+        map.put("largeImageKey",    largeImageKey);
+        map.put("smallImageKey",    smallImageKey);
+        map.put("largeImageText",   largeImageText);
+        map.put("smallImageText",   smallImageText);
+        map.put("firstButtonEnable",  String.valueOf(firstButtonEnable));
+        map.put("firstButtonName",    firstButtonName);
+        map.put("firstButtonUrl",     firstButtonUrl);
+        map.put("secondButtonEnable", String.valueOf(secondButtonEnable));
+        map.put("secondButtonName",   secondButtonName);
+        map.put("secondButtonUrl",    secondButtonUrl);
         return map;
     }
 
     @Override
     public String toString() {
-        return "ScopeConfig{" +
-               "details='" + details + '\'' +
-               ", state='" + state + '\'' +
-               ", largeImage='" + largeImage + '\'' +
-               ", smallImage='" + smallImage + '\'' +
-               ", largeText='" + largeText + '\'' +
-               ", smallText='" + smallText + '\'' +
-               ", button1Enable=" + button1Enable +
-               ", button1Name='" + button1Name + '\'' +
-               ", button1Url='" + button1Url + '\'' +
-               ", button2Enable=" + button2Enable +
-               ", button2Name='" + button2Name + '\'' +
-               ", button2Url='" + button2Url + '\'' +
-               '}';
+        return "ScopeConfig{details='" + details + "', state='" + state + "', largeImageKey='" + largeImageKey +
+               "', smallImageKey='" + smallImageKey + "', firstButtonEnable=" + firstButtonEnable + '}';
     }
 }

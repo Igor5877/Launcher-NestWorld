@@ -12,12 +12,8 @@ java {
 
 repositories {
     mavenCentral()
-    // JitPack — основне джерело discord-game-sdk4j
     maven { url 'https://jitpack.io' }
-    // Дзеркало GravitLauncher (якщо JitPack недоступний)
-    maven {
-        url 'https://maven.gravitlauncher.com/'
-    }
+    maven { url 'https://maven.gravitlauncher.com/' }
 }
 
 dependencies {
@@ -26,10 +22,11 @@ dependencies {
     compileOnly project(':LauncherAPI')
     compileOnly project(':LauncherClient')
 
-    // Discord Game SDK4J v0.5.x (стара API з native libs).
-    // Увага: версія 1.0.0+ має абсолютно іншу API — НЕ сумісна з цим кодом.
-    // Якщо v0.5.5 недоступна — знайдіть актуальну 0.5.x-версію на: https://github.com/JnCrMx/discord-game-sdk4j/releases
-    implementation('com.github.JnCrMx:discord-game-sdk4j:v0.5.5') {
+    // discord-game-sdk4j — тільки для компіляції.
+    // Готовий JAR потрібно завантажити вручну і покласти в /LaunchServer/launcher-libraries/
+    // Завантажити: https://jitpack.io/com/github/JnCrMx/discord-game-sdk4j/v1.0.0/discord-game-sdk4j-v1.0.0.jar
+    // УВАГА: v1.0.0 більше НЕ потребує нативних бібліотек — спілкується з Discord через IPC.
+    compileOnly('com.github.JnCrMx:discord-game-sdk4j:v1.0.0') {
         exclude group: 'com.google.code.gson', module: 'gson'
     }
 }
@@ -42,11 +39,6 @@ jar {
             'Module-Config-Name': 'DiscordGame'
         )
     }
-
-    // Включаємо discord-game-sdk4j в fat JAR разом із нативними бібліотеками
-    from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
-
+    // НЕ fat-JAR: discord-game-sdk4j кладеться окремо в launcher-libraries/
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
