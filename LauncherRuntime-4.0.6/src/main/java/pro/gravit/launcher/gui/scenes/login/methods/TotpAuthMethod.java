@@ -85,6 +85,7 @@ public class TotpAuthMethod extends AbstractAuthMethod<AuthTotpDetails> {
         private static final UserAuthCanceledException USER_AUTH_CANCELED_EXCEPTION = new UserAuthCanceledException();
         private TextField totpField;
         private CompletableFuture<AuthFlow.LoginAndPasswordResult> future;
+        private CompletableFuture<String> rawCodeFuture;
         private LoginScene.LoginSceneAccessor accessor;
         private int maxLength;
 
@@ -117,9 +118,22 @@ public class TotpAuthMethod extends AbstractAuthMethod<AuthTotpDetails> {
 
         }
 
+        public CompletableFuture<String> awaitCode(int maxLen) {
+            this.maxLength = maxLen;
+            reset();
+            rawCodeFuture = new CompletableFuture<>();
+            return rawCodeFuture;
+        }
+
         public void complete() {
+            String code = getCode();
+            if (rawCodeFuture != null && !rawCodeFuture.isDone()) {
+                rawCodeFuture.complete(code);
+                rawCodeFuture = null;
+                return;
+            }
             AuthTOTPPassword totpPassword = new AuthTOTPPassword();
-            totpPassword.totp = getCode();
+            totpPassword.totp = code;
             future.complete(new AuthFlow.LoginAndPasswordResult(null, totpPassword));
         }
 
@@ -135,6 +149,10 @@ public class TotpAuthMethod extends AbstractAuthMethod<AuthTotpDetails> {
         public void reset() {
             if(totpField == null) return;
             totpField.setText("");
+            if (rawCodeFuture != null && !rawCodeFuture.isDone()) {
+                rawCodeFuture.completeExceptionally(USER_AUTH_CANCELED_EXCEPTION);
+                rawCodeFuture = null;
+            }
         }
 
         @Override

@@ -4,7 +4,6 @@ import com.azuriom.azauth.AuthClient;
 import com.azuriom.azauth.AuthResult;
 import com.azuriom.azauth.exception.AuthException;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextInputDialog;
 import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
 import pro.gravit.launcher.gui.JavaFXApplication;
 import pro.gravit.launcher.gui.helper.LookupHelper;
@@ -23,12 +22,15 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
     private final LoginAndPasswordOverlay overlay;
     private final JavaFXApplication application;
     private final LoginScene.LoginSceneAccessor accessor;
+    private final TotpAuthMethod.TotpOverlay totpOverlay;
     private String pendingUrl;
+    private volatile CompletableFuture<String> pendingCodeFuture;
 
     public LoginAndPasswordAuthMethod(LoginScene.LoginSceneAccessor accessor) {
         this.accessor = accessor;
         this.application = accessor.getApplication();
         this.overlay = new LoginAndPasswordOverlay(application);
+        this.totpOverlay = new TotpAuthMethod.TotpOverlay(application);
     }
 
     @Override
@@ -74,6 +76,10 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
 
     @Override
     public void onAuthClicked() {
+        if (pendingCodeFuture != null) {
+            totpOverlay.complete();
+            return;
+        }
         if (pendingUrl == null) {
             overlay.future.complete(overlay.getResult());
             return;
@@ -85,17 +91,10 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
                 AuthClient azClient = new AuthClient(pendingUrl);
                 AuthResult<com.azuriom.azauth.model.User> result = azClient.login(login, rawPassword);
                 if (result.isPending() && result.asPending().require2fa()) {
-                    CompletableFuture<String> totpFuture = new CompletableFuture<>();
-                    ContextHelper.runInFxThreadStatic(() -> {
-                        TextInputDialog dialog = new TextInputDialog();
-                        dialog.setHeaderText(application.getTranslation("runtime.scenes.login.totp"));
-                        dialog.setContentText("TOTP:");
-                        dialog.showAndWait().ifPresentOrElse(
-                            totpFuture::complete,
-                            () -> totpFuture.completeExceptionally(new UserAuthCanceledException())
-                        );
-                    });
-                    String totpCode = totpFuture.join();
+                    pendingCodeFuture = totpOverlay.awaitCode(6);
+                    ContextHelper.runInFxThreadStatic(() -> accessor.showContent(totpOverlay));
+                    String totpCode = pendingCodeFuture.join();
+                    pendingCodeFuture = null;
                     result = azClient.login(login, rawPassword, totpCode);
                 }
                 if (!result.isSuccess()) {
@@ -118,7 +117,13 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
 
     @Override
     public void onUserCancel() {
-        overlay.future.completeExceptionally(LoginAndPasswordOverlay.USER_AUTH_CANCELED_EXCEPTION);
+        CompletableFuture<String> cf = pendingCodeFuture;
+        if (cf != null) {
+            pendingCodeFuture = null;
+            cf.completeExceptionally(new UserAuthCanceledException());
+        } else {
+            overlay.future.completeExceptionally(LoginAndPasswordOverlay.USER_AUTH_CANCELED_EXCEPTION);
+        }
     }
 
     @Override
