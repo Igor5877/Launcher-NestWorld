@@ -30,6 +30,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -100,6 +101,12 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                         sql.table, sql.accessTokenColumn, sql.uuidColumn);
             }
             isDatabaseMode = true;
+            if (sql.accessTokenColumn.equals(azuriomTokenColumn)) {
+                logger.warn("CONFIGURATION WARNING: sql.accessTokenColumn ('{}') == azuriomTokenColumn. " +
+                        "updateAuth() on Minecraft join will overwrite the Azuriom token, breaking re-auth. " +
+                        "Add a separate column (e.g. 'mc_access_token') and set sql.accessTokenColumn to it.",
+                        sql.accessTokenColumn);
+            }
             logger.info("Azuriom provider: Database integration is ENABLED with HWID support.");
         } else {
             isDatabaseMode = false;
@@ -164,6 +171,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     // Reads the current Azuriom access_token for a user by UUID (plaintext, stored in users table).
     // Used during JWT fallback to restore the Azuriom token for the client.
     private String readAzuriomTokenForUser(UUID uuid) {
+        if (!isDatabaseMode) return null;
         String query = "SELECT %s FROM %s WHERE %s = ?".formatted(azuriomTokenColumn, sql.table, sql.uuidColumn);
         try (Connection conn = sql.mySQLHolder.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -200,6 +208,11 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
+        if (!isDatabaseMode) {
+            logger.warn("reportFromOAuth called but database mode is disabled, rejecting token.");
+            throw new pro.gravit.launchserver.auth.AuthException(
+                    pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
+        }
         try {
             boolean isJwt = isJwtToken(accessToken);
             UUID userUuid = resolveUuidFromAccessToken(accessToken);
@@ -250,19 +263,24 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public UserSession getUserSessionByOAuthAccessToken(String accessToken) throws OAuthAccessTokenExpired {
+        if (!isDatabaseMode) {
+            throw new OAuthAccessTokenExpired("Database mode is disabled");
+        }
         UUID userUuid = resolveUuidFromAccessToken(accessToken);
 
         MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(userUuid);
 
         if (localUser == null) {
             logger.warn("User with UUID '{}' verified via token but not found in local database.", userUuid);
-            return null;
+            throw new OAuthAccessTokenExpired("User not found");
         }
 
         try {
             checkHwidBan(localUser);
         } catch (pro.gravit.launchserver.auth.AuthException e) {
-            throw new OAuthAccessTokenExpired(e.getMessage());
+            // Wrapping as OAuthAccessTokenExpired forces a refresh cycle, after which
+            // reportFromOAuth() will reject the user with the proper ban message.
+            throw new OAuthAccessTokenExpired("HWID_BAN: " + e.getMessage());
         }
 
         return sql.createSession(localUser);
@@ -390,11 +408,12 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             logger.warn("Database mode is disabled. Cannot extended check server for user '{}'.", username);
             return null;
         }
+        if (serverID == null) return null;
         MySQLCoreProvider.MySQLUser user = (MySQLCoreProvider.MySQLUser) sql.getUserByUsername(username);
         if (user == null) {
             return null;
         }
-        if (user.getUsername().equals(username) && serverID.equals(user.getServerId())) {
+        if (user.getUsername().equals(username) && Objects.equals(serverID, user.getServerId())) {
             return sql.createSession(user);
         }
         return null;
