@@ -209,7 +209,9 @@ public class LoginScene extends AbstractScene {
         application.authService.setAuthResult(authAvailability.name, result);
         boolean savePassword = savePasswordCheckBox.isSelected();
         if (savePassword) {
-            application.runtimeSettings.login = successAuth.recentLogin();
+            if (successAuth.recentLogin() != null) {
+                application.runtimeSettings.login = successAuth.recentLogin();
+            }
             if (result.oauth == null) {
                 LogHelper.warning("Password not saved");
             } else {
