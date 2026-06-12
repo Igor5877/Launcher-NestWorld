@@ -58,12 +58,13 @@ public class AuthFlow {
             accessor.clearContent();
             accessor.setState(LoginAuthButtonComponent.AuthButtonState.ACTIVE);
         }
-        if (authMethodOnShow != null && !authMethodOnShow.isOverlay()) {
-            loginWithGui();
-        }
+        boolean shouldRestart = authMethodOnShow != null && !authMethodOnShow.isOverlay();
         authMethodOnShow = null;
         for (var e : authMethods.values()) {
             e.reset();
+        }
+        if (shouldRestart) {
+            loginWithGui();
         }
     }
 
