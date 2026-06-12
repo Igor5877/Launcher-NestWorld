@@ -235,6 +235,22 @@ public class AuthFlow {
             // Verify directly with Azuriom so admin panel logs the client's real IP.
             verifyWithAzuriomThenLogin(savedToken, azuriomUrl);
         } else {
+            if (azuriomUrl != null) {
+                // JWT path: verify with Azuriom in background so admin panel logs the login.
+                String azuriomToken = getAzuriomToken();
+                if (azuriomToken != null) {
+                    final String url = azuriomUrl;
+                    final String token = azuriomToken;
+                    CompletableFuture.runAsync(() -> {
+                        try {
+                            new AuthClient(url).verify(token);
+                            LogHelper.debug("Azuriom token verified (JWT auto-login, IP logged)");
+                        } catch (Exception e) {
+                            LogHelper.debug("Azuriom background verify failed: %s", e.getMessage());
+                        }
+                    });
+                }
+            }
             Request.setOAuth(authAvailability.name,
                     new AuthRequestEvent.OAuthRequestEvent(savedToken,
                             application.runtimeSettings.oauthRefreshToken,
@@ -274,8 +290,16 @@ public class AuthFlow {
         return null;
     }
 
-    private static boolean isJwtToken(String token) {
+    static boolean isJwtToken(String token) {
         return token != null && token.startsWith("eyJ");
+    }
+
+    private String getAzuriomToken() {
+        var password = accessor.getApplication().runtimeSettings.password;
+        if (password instanceof AuthOAuthPassword oap && !isJwtToken(oap.accessToken)) {
+            return oap.accessToken;
+        }
+        return null;
     }
 
     private void refreshToken() {
