@@ -63,6 +63,7 @@ public class RestoreResponse extends SimpleResponse {
             sendError("Invalid authId");
             return;
         }
+        AuthRequestEvent.OAuthRequestEvent oauth = null;
         if (accessToken != null) {
             UserSession session;
             try {
@@ -83,6 +84,7 @@ public class RestoreResponse extends SimpleResponse {
             client.coreObject = user;
             client.sessionObject = session;
             server.authManager.internalAuth(client, client.type == null ? AuthResponse.ConnectTypes.API : client.type, pair, user.getUsername(), user.getUUID(), user.getPermissions(), true);
+            oauth = new AuthRequestEvent.OAuthRequestEvent(accessToken, null, 0);
         }
         List<String> invalidTokens = new ArrayList<>(4);
         if (extended != null) {
@@ -95,9 +97,13 @@ public class RestoreResponse extends SimpleResponse {
             });
         }
         if (needUserInfo && client.isAuth) {
-            sendResult(new RestoreRequestEvent(CurrentUserResponse.collectUserInfoFromClient(server, client), invalidTokens));
+            RestoreRequestEvent result = new RestoreRequestEvent(CurrentUserResponse.collectUserInfoFromClient(server, client), invalidTokens);
+            result.oauth = oauth;
+            sendResult(result);
         } else {
-            sendResult(new RestoreRequestEvent(invalidTokens));
+            RestoreRequestEvent result = new RestoreRequestEvent(invalidTokens);
+            result.oauth = oauth;
+            sendResult(result);
         }
     }
 
