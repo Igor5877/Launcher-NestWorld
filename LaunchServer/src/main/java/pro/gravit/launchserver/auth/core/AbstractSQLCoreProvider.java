@@ -41,6 +41,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
     public String uuidColumn;
     public String usernameColumn;
     public String accessTokenColumn;
+    public String gameAccessTokenColumn;
     public String passwordColumn;
     public String serverIDColumn;
     public String table;
@@ -226,6 +227,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
         if (uuidColumn == null) logger.error("uuidColumn cannot be null");
         if (usernameColumn == null) logger.error("usernameColumn cannot be null");
         if (accessTokenColumn == null) logger.error("accessTokenColumn cannot be null");
+        if (gameAccessTokenColumn == null) gameAccessTokenColumn = accessTokenColumn;
         if (serverIDColumn == null) logger.error("serverIDColumn cannot be null");
         if (table == null) logger.error("table cannot be null");
         // Prepare SQL queries
@@ -241,7 +243,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
 
                 
         updateAuthSQL = customUpdateAuthSQL != null ? customUpdateAuthSQL :
-                "UPDATE %s SET %s=?, %s=NULL WHERE %s=?".formatted(table, accessTokenColumn, serverIDColumn, uuidColumn);
+                "UPDATE %s SET %s=?, %s=NULL WHERE %s=?".formatted(table, gameAccessTokenColumn, serverIDColumn, uuidColumn);
         updateServerIDSQL = customUpdateServerIdSQL != null ? customUpdateServerIdSQL :
                 "UPDATE %s SET %s=? WHERE %s=?".formatted(table, serverIDColumn, uuidColumn);
         if (isEnabledPermissions()) {
@@ -265,7 +267,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
     }
 
     protected String makeUserCols() {
-        return "%s, %s, %s, %s, %s".formatted(uuidColumn, usernameColumn, accessTokenColumn, serverIDColumn, passwordColumn);
+        return "%s, %s, %s, %s, %s".formatted(uuidColumn, usernameColumn, gameAccessTokenColumn, serverIDColumn, passwordColumn);
     }
 
     protected void updateAuth(User user, String accessToken) throws IOException {
@@ -274,7 +276,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
             SQLUser.accessToken = accessToken;
             PreparedStatement s = c.prepareStatement(updateAuthSQL);
             s.setString(1, accessToken);
-            s.setString(2, user.getUUID().toString());
+            s.setString(2, user.getUUID().toString().replace("-", ""));
             s.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
             s.executeUpdate();
         } catch (SQLException e) {
@@ -288,7 +290,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
             SQLUser.serverId = serverID;
             PreparedStatement s = c.prepareStatement(updateServerIDSQL);
             s.setString(1, serverID);
-            s.setString(2, user.getUUID().toString());
+            s.setString(2, user.getUUID().toString().replace("-", ""));
             s.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
             return s.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -308,7 +310,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
 
     protected SQLUser constructUser(ResultSet set) throws SQLException {
         return set.next() ? new SQLUser(toUUID(set.getString(uuidColumn)), set.getString(usernameColumn),
-                set.getString(accessTokenColumn), set.getString(serverIDColumn), set.getString(passwordColumn)) : null;
+                set.getString(gameAccessTokenColumn), set.getString(serverIDColumn), set.getString(passwordColumn)) : null;
     }
 
     public ClientPermissions requestPermissions (String uuid)  throws SQLException
