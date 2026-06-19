@@ -268,6 +268,10 @@ public final class LaunchServerConfig {
         public String launcherURL;
         public String downloadURL;
         public String launcherEXEURL;
+        public String javaDownloadURLAmd64;
+        public String javaDownloadURLArm64;
+        public String javafxDownloadURLAmd64;
+        public String javafxDownloadURLArm64;
         public String address;
         public Map<String, LaunchServerConfig.NettyUpdatesBind> bindings = new HashMap<>();
         public NettyPerformanceConfig performance;
