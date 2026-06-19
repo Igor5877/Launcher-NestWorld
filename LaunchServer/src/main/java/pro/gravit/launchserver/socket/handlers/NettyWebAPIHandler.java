@@ -5,13 +5,22 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
+import com.google.gson.Gson; // Added import
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.google.gson.JsonSyntaxException;
 import pro.gravit.launcher.base.Launcher;
 import pro.gravit.launchserver.socket.NettyConnectContext;
 import pro.gravit.utils.helper.IOHelper;
+import pro.gravit.utils.helper.LogHelper;
+import pro.gravit.utils.helper.SecurityHelper;
 
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.regex.Pattern;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -29,11 +38,95 @@ public class NettyWebAPIHandler extends SimpleChannelInboundHandler<FullHttpRequ
     }
 
     private final NettyConnectContext context;
-    private transient final Logger logger = LogManager.getLogger();
+    private transient final Logger logger = LogManager.getLogger(); // Main logger
+    private static final Logger crashReportLogger = LogManager.getLogger("CrashReport"); // Specific logger
+
+    private static final Pattern SAFE_CHARS_PATTERN = Pattern.compile("[^a-zA-Z0-9_.-]");
+
 
     public NettyWebAPIHandler(NettyConnectContext context) {
         super();
         this.context = context;
+    }
+
+    static {
+        addUnsafeSeverlet("/crashreport", NettyWebAPIHandler::handleCrashReportRequest);
+    }
+
+    private static String sanitize(String input) {
+        if (input == null || input.isEmpty()) {
+            return "";
+        }
+        // Basic sanitization: replace potentially unsafe characters.
+        // Ensure it's not empty after sanitization.
+        // Disallow ".." to prevent path traversal.
+        if (input.contains("..")) {
+            return ""; // Disallow if ".." is present
+        }
+        String sanitized = SAFE_CHARS_PATTERN.matcher(input).replaceAll("");
+        // Limit length to prevent excessively long paths/filenames
+        if (sanitized.length() > 128) {
+            sanitized = sanitized.substring(0, 128);
+        }
+        return sanitized;
+    }
+
+    public static void handleCrashReportRequest(ChannelHandlerContext ctx, FullHttpRequest msg, NettyConnectContext context) {
+        SimpleSeverletHandler handler = (c, m, cc) -> {}; // Dummy for utility methods
+
+        if (!msg.method().equals(HttpMethod.POST)) {
+            handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.METHOD_NOT_ALLOWED, "Only POST method is allowed"));
+            return;
+        }
+
+        try {
+            String jsonPayload = msg.content().toString(StandardCharsets.UTF_8);
+            Gson localGson = new Gson();
+            CrashReportPayload payload = localGson.fromJson(jsonPayload, CrashReportPayload.class);
+
+            if (payload == null || payload.username == null || payload.fileName == null || payload.content == null ||
+                payload.username.isEmpty() || payload.fileName.isEmpty()) {
+                handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.BAD_REQUEST, "Missing fields in payload"));
+                return;
+            }
+
+            String username = sanitize(payload.username);
+            String fileName = sanitize(payload.fileName);
+
+            if (username.isEmpty() || fileName.isEmpty() || fileName.equals(".") || fileName.equals("..")) {
+                LogHelper.warning("Invalid or sanitized to empty username or fileName. Original username: '%s', fileName: '%s'", payload.username, payload.fileName);
+                handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.BAD_REQUEST, "Invalid username or fileName after sanitization"));
+                return;
+            }
+            
+            Path baseDir = Paths.get("Crashreport-Client");
+            Path userDir = baseDir.resolve(username);
+            Files.createDirectories(userDir);
+            Path reportFile = userDir.resolve(fileName);
+
+            // Optional: Prevent overwriting, though client side should ideally generate unique names
+            // if (Files.exists(reportFile)) {
+            //     handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.CONFLICT, "File already exists"));
+            //     return;
+            // }
+
+            Files.writeString(reportFile, payload.content, StandardCharsets.UTF_8);
+
+            crashReportLogger.info("Saved crash report {} for user {}", fileName, username); // Use specific logger
+            handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.OK, "Crash report received"));
+
+        } catch (JsonSyntaxException e) {
+            LogHelper.warning("Invalid JSON received for /crashreport: %s", e.getMessage());
+            handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.BAD_REQUEST, "Invalid JSON format"));
+        } catch (Exception e) {
+            LogHelper.error("Error processing /crashreport request. Exception type: " + e.getClass().getName() + ", Message: " + e.getMessage(), e); // Log with more details
+            System.err.println("BEGIN STACK TRACE FOR /crashreport ERROR"); // Marker for easy log finding
+            e.printStackTrace(System.err); // Print stack trace to stderr
+            System.err.println("END STACK TRACE FOR /crashreport ERROR");   // Marker
+            handler.sendHttpResponse(ctx, handler.simpleResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR, "Internal server error"));
+        } finally {
+            // msg.release(); // FullHttpRequest is auto-released by SimpleChannelInboundHandler if not passed to next handler
+        }
     }
 
     public static void addNewSeverlet(String path, SimpleSeverletHandler callback) {
@@ -120,5 +213,12 @@ public class NettyWebAPIHandler extends SimpleChannelInboundHandler<FullHttpRequ
             this.key = key;
             this.callback = callback;
         }
+    }
+
+    // Static inner class for JSON payload
+    static class CrashReportPayload {
+        String username;
+        String fileName;
+        String content;
     }
 }

@@ -213,10 +213,11 @@ public class ClientLauncherProcess {
         processBuilder.environment().put("JAVA_HOME", javaVersion.jvmDir.toAbsolutePath().toString());
         processBuilder.environment().putAll(systemEnv);
         processBuilder.directory(workDir.toFile());
-        processBuilder.inheritIO();
         if (pipeOutput) {
             processBuilder.redirectErrorStream(true);
             processBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+        } else {
+            processBuilder.inheritIO(); // Keep original behavior if pipeOutput is false
         }
         process = processBuilder.start();
         LauncherEngine.modulesManager.invokeEvent(new ClientProcessBuilderLaunchedEvent(this));
