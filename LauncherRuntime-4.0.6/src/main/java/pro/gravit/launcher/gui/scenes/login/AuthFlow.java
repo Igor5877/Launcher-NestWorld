@@ -264,7 +264,7 @@ public class AuthFlow {
         AuthRequest authRequest = application.authService.makeAuthRequest(null, password, authAvailability.name);
         accessor.processing(authRequest, application.getTranslation("runtime.overlay.processing.text.auth"),
                             (result) -> accessor.runInFxThread(
-                                    () -> onSuccessAuth.accept(new SuccessAuth(result, null, null))),
+                                    () -> onSuccessAuth.accept(new SuccessAuth(result, null, password))),
                             (error) -> {
                                 if (refreshIfError && error.equals(AuthRequestEvent.OAUTH_TOKEN_EXPIRE)) {
                                     refreshToken();
