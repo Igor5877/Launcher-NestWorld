@@ -13,7 +13,12 @@ import pro.gravit.launcher.base.request.auth.details.AuthWebViewDetails;
 import pro.gravit.launcher.base.request.auth.password.Auth2FAPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthMultiPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
+import pro.gravit.launcher.base.Launcher;
+import pro.gravit.launcher.base.request.auth.password.AuthAESPassword;
+import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
+import pro.gravit.launcher.base.request.auth.password.AuthTokenPassword;
 import pro.gravit.launcher.gui.scenes.login.methods.*;
+import pro.gravit.utils.helper.SecurityHelper;
 import pro.gravit.utils.helper.LogHelper;
 
 import java.util.ArrayList;
@@ -156,9 +161,28 @@ public class AuthFlow {
         isLoginStarted = true;
         var application = accessor.getApplication();
         LogHelper.dev("Auth with %s password ***** authId %s", login, authId);
-        AuthRequest authRequest = application.authService.makeAuthRequest(login, password, authId.name);
+
+        // Azuriom auth logic
+        if (authId.features.contains("AZURIOM_TOKEN_AUTH") && (password instanceof AuthAESPassword || password instanceof AuthPlainPassword)) {
+            try {
+                String plainPassword;
+                if(password instanceof AuthAESPassword aesPassword) {
+                    plainPassword = new String(SecurityHelper.decrypt(Launcher.getConfig().passwordEncryptKey, aesPassword.password));
+                } else {
+                    plainPassword = ((AuthPlainPassword) password).password;
+                }
+                String azuriomToken = application.authService.authWithAzuriom(login, plainPassword);
+                password = new AuthTokenPassword(azuriomToken);
+            } catch (Exception e) {
+                result.completeExceptionally(e);
+                return;
+            }
+        }
+
+        AuthRequest.AuthPasswordInterface finalPassword = password;
+        AuthRequest authRequest = application.authService.makeAuthRequest(login, finalPassword, authId.name);
         accessor.processing(authRequest, application.getTranslation("runtime.overlay.processing.text.auth"),
-                            (event) -> result.complete(new SuccessAuth(event, login, password)), (error) -> {
+                            (event) -> result.complete(new SuccessAuth(event, login, finalPassword)), (error) -> {
                     if (error.equals(AuthRequestEvent.OAUTH_TOKEN_INVALID)) {
                         application.runtimeSettings.oauthAccessToken = null;
                         application.runtimeSettings.oauthRefreshToken = null;
@@ -178,7 +202,7 @@ public class AuthFlow {
                             return;
                         }
                         authFlow.add(totpImpl);
-                        accessor.runInFxThread(() -> start(result, login, password));
+                        accessor.runInFxThread(() -> start(result, login, finalPassword));
                     } else if (error.startsWith(AuthRequestEvent.ONE_FACTOR_NEED_ERROR_MESSAGE_PREFIX)) {
                         List<Integer> newAuthFlow = new ArrayList<>();
                         for (String s : error.substring(
@@ -188,7 +212,7 @@ public class AuthFlow {
                         //AuthRequest.AuthPasswordInterface recentPassword = makeResentPassword(newAuthFlow, password);
                         authFlow.clear();
                         authFlow.addAll(newAuthFlow);
-                        accessor.runInFxThread(() -> start(result, login, password));
+                        accessor.runInFxThread(() -> start(result, login, finalPassword));
                     } else {
                         authFlow.clear();
                         authFlow.add(0);
