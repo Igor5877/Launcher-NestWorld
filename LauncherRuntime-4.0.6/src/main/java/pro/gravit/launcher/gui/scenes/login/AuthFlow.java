@@ -33,6 +33,11 @@ public class AuthFlow {
     private volatile AbstractAuthMethod<GetAvailabilityAuthRequestEvent.AuthAvailabilityDetails> authMethodOnShow;
     private final Consumer<SuccessAuth> onSuccessAuth;
     public boolean isLoginStarted;
+    // Guards against two concurrent refreshToken() calls (e.g. expired-token path +
+    // Azuriom verify fallback firing at once), which would invalidate each other's
+    // new refresh token and break re-auth.
+    private final java.util.concurrent.atomic.AtomicBoolean refreshInProgress =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     public AuthFlow(LoginScene.LoginSceneAccessor accessor, Consumer<SuccessAuth> onSuccessAuth) {
         this.accessor = accessor;
@@ -280,6 +285,12 @@ public class AuthFlow {
                 LogHelper.info("Azuriom token invalid during auto-login, refreshing: {}", e.getMessage());
                 refreshToken();
             }
+        }).exceptionally((th) -> {
+            // refreshToken()/loginWithOAuth() may throw synchronously; without this the
+            // exception would be swallowed by the common pool and auto-login would hang.
+            LogHelper.error("Azuriom auto-login failed unexpectedly: %s", th.getMessage());
+            accessor.runInFxThread(this::loginWithGui);
+            return null;
         });
     }
 
@@ -303,10 +314,16 @@ public class AuthFlow {
     }
 
     private void refreshToken() {
+        if (!refreshInProgress.compareAndSet(false, true)) {
+            // A refresh is already in flight; a second one would race and invalidate it.
+            LogHelper.debug("refreshToken() skipped, already in progress");
+            return;
+        }
         var application = accessor.getApplication();
         RefreshTokenRequest request = new RefreshTokenRequest(authAvailability.name,
                                                               application.runtimeSettings.oauthRefreshToken);
         accessor.processing(request, application.getTranslation("runtime.overlay.processing.text.auth"), (result) -> {
+            refreshInProgress.set(false);
             application.runtimeSettings.oauthAccessToken = result.oauth.accessToken;
             application.runtimeSettings.oauthRefreshToken = result.oauth.refreshToken;
             application.runtimeSettings.oauthExpire = result.oauth.expire == 0
@@ -317,6 +334,7 @@ public class AuthFlow {
             LogHelper.info("Login with OAuth AccessToken");
             loginWithOAuth(password, authAvailability, false);
         }, (error) -> {
+            refreshInProgress.set(false);
             application.runtimeSettings.oauthAccessToken = null;
             application.runtimeSettings.oauthRefreshToken = null;
             accessor.runInFxThread(this::loginWithGui);

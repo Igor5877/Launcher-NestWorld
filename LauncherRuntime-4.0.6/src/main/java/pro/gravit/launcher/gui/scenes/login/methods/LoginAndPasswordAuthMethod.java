@@ -23,7 +23,7 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
     private final JavaFXApplication application;
     private final LoginScene.LoginSceneAccessor accessor;
     private final TotpAuthMethod.TotpOverlay totpOverlay;
-    private String pendingUrl;
+    private volatile String pendingUrl;
     private volatile CompletableFuture<String> pendingCodeFuture;
 
     public LoginAndPasswordAuthMethod(LoginScene.LoginSceneAccessor accessor) {
@@ -86,9 +86,10 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
         }
         String login = overlay.login.getText();
         String rawPassword = overlay.password.getText();
+        final String url = pendingUrl;
         CompletableFuture.supplyAsync(() -> {
             try {
-                AuthClient azClient = new AuthClient(pendingUrl);
+                AuthClient azClient = new AuthClient(url);
                 AuthResult<com.azuriom.azauth.model.User> result = azClient.login(login, rawPassword);
                 if (result.isPending() && result.asPending().require2fa()) {
                     pendingCodeFuture = totpOverlay.awaitCode(6);
@@ -140,7 +141,7 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
         private static final UserAuthCanceledException USER_AUTH_CANCELED_EXCEPTION = new UserAuthCanceledException();
         private TextField login;
         private TextField password;
-        private CompletableFuture<AuthFlow.LoginAndPasswordResult> future;
+        private volatile CompletableFuture<AuthFlow.LoginAndPasswordResult> future;
 
         public LoginAndPasswordOverlay(JavaFXApplication application) {
             super("scenes/login/methods/loginpassword.fxml", application);
