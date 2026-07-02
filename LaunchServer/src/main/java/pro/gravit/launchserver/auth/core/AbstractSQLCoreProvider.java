@@ -303,6 +303,7 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
 
     protected static UUID toUUID(String s) {
         if(s == null) return null;
+        if(s.indexOf('-') >= 0) return UUID.fromString(s); // dashed format (e.g. Azuriom game_id)
         return UUID.fromString(s.substring(0, 8) + "-" + s.substring(8, 12) + "-" + s.substring(12, 16) + "-" + s.substring(16, 20) + "-" + s.substring(20, 32));
     }
 

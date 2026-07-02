@@ -96,6 +96,12 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         this.authClient = new AuthClient(azuriomUrl);
 
         if (sql != null) {
+            // Azuriom stores game_id as a dashed UUID, but getUserByUUID() binds the
+            // parameter without dashes — match both formats unless a custom query is set.
+            if (sql.customQueryByUUIDSQL == null) {
+                sql.customQueryByUUIDSQL = "SELECT %s FROM %s WHERE REPLACE(%s, '-', '') = ? LIMIT 1"
+                        .formatted(sql.makeUserCols(), sql.table, sql.uuidColumn);
+            }
             sql.init(server, pair);
             // Prevent updateAuth from clearing serverId — the default SQL does
             // SET serverId=NULL which breaks extendedCheckServer during server switch.
