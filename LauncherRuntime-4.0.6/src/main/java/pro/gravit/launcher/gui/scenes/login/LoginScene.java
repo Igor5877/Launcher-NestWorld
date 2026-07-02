@@ -212,7 +212,11 @@ public class LoginScene extends AbstractScene {
     public void onSuccessLogin(AuthFlow.SuccessAuth successAuth) {
         AuthRequestEvent result = successAuth.requestEvent();
         application.authService.setAuthResult(authAvailability.name, result);
-        boolean savePassword = savePasswordCheckBox.isSelected();
+        // Офлайн-режим «входить» токеном-заглушкою через власний auth "offline":
+        // зберігати її не можна, інакше вона перетре справжні JWT+refresh і lastAuth,
+        // і після повернення мережі автовхід попросить пароль.
+        boolean savePassword = savePasswordCheckBox.isSelected()
+                && !application.offlineService.isOfflineMode();
         if (savePassword) {
             if (successAuth.recentLogin() != null) {
                 application.runtimeSettings.login = successAuth.recentLogin();
