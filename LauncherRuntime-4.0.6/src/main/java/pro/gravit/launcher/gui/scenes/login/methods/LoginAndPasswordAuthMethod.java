@@ -25,6 +25,11 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
     private final TotpAuthMethod.TotpOverlay totpOverlay;
     private volatile String pendingUrl;
     private volatile CompletableFuture<String> pendingCodeFuture;
+    // Кнопка «Увійти» ніколи не дизейблиться фізично (LoginAuthButtonComponent лише
+    // міняє стилі), а кожен повторний authenticate() ротує токен сайта і робить
+    // недійсним попередній — тому дублікати кліків треба гасити тут.
+    private final java.util.concurrent.atomic.AtomicBoolean authInFlight =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     public LoginAndPasswordAuthMethod(LoginScene.LoginSceneAccessor accessor) {
         this.accessor = accessor;
@@ -76,13 +81,18 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
 
     @Override
     public void onAuthClicked() {
-        if (pendingCodeFuture != null) {
+        CompletableFuture<String> codeFuture = pendingCodeFuture;
+        if (codeFuture != null) {
+            // Сабміт TOTP-коду; complete() ідемпотентний, повторний клік — no-op.
             totpOverlay.complete();
             return;
         }
         if (pendingUrl == null) {
             overlay.future.complete(overlay.getResult());
             return;
+        }
+        if (!authInFlight.compareAndSet(false, true)) {
+            return; // попередній вхід ще триває
         }
         String login = overlay.login.getText();
         String rawPassword = overlay.password.getText();
@@ -106,10 +116,12 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
             } catch (AuthException e) {
                 throw new RuntimeException(e.getMessage(), e);
             }
-        }).whenComplete((res, ex) -> {
+        }).orTimeout(60, java.util.concurrent.TimeUnit.SECONDS).whenComplete((res, ex) -> {
             // Завершуємо future в FX-потоці: подальший ланцюжок AuthFlow працює зі сценою,
             // і продовження з worker-потоку мовчки падає з IllegalStateException.
             ContextHelper.runInFxThreadStatic(() -> {
+                pendingCodeFuture = null;
+                authInFlight.set(false);
                 if (ex != null) {
                     Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                     overlay.future.completeExceptionally(cause);
@@ -177,7 +189,11 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
             } else {
                 accessor.getAuthButton().setState(LoginAuthButtonComponent.AuthButtonState.UNACTIVE);
             }
-            if (application.runtimeSettings.password != null) {
+            // AuthOAuthPassword тут — застарілий одноразовий токен сайта зі старих збірок
+            // (нові його не зберігають): показувати його як «збережений пароль» не можна,
+            // бо повторний сабміт гарантовано впаде з auth.expiretoken.
+            if (application.runtimeSettings.password != null
+                    && !(application.runtimeSettings.password instanceof AuthOAuthPassword)) {
                 password.getStyleClass().add("hasSaved");
                 password.setPromptText(application.getTranslation("runtime.scenes.login.password.saved"));
             }

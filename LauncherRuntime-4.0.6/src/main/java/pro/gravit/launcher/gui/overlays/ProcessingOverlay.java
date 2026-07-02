@@ -68,7 +68,11 @@ public class ProcessingOverlay extends AbstractOverlay {
                         return null;
                     });
                 } catch (IOException ex) {
-                    errorHandle(ex);
+                    // Синхронний збій відправки має йти тим самим error-шляхом, що й
+                    // асинхронний: інакше стани викликача (напр. refreshInProgress
+                    // в AuthFlow) ніколи не скидаються.
+                    if (onException != null) onException.accept(ex);
+                    else errorHandle(ex);
                     hide(2500, onError);
                 }
             }));

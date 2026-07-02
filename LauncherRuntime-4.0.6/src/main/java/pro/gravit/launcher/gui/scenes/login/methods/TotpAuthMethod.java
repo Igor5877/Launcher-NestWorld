@@ -68,7 +68,9 @@ public class TotpAuthMethod extends AbstractAuthMethod<AuthTotpDetails> {
 
     @Override
     public void onUserCancel() {
-        overlay.future.completeExceptionally(TotpOverlay.USER_AUTH_CANCELED_EXCEPTION);
+        if (overlay.future != null && !overlay.future.isDone()) {
+            overlay.future.completeExceptionally(TotpOverlay.USER_AUTH_CANCELED_EXCEPTION);
+        }
     }
 
     @Override
@@ -118,23 +120,37 @@ public class TotpAuthMethod extends AbstractAuthMethod<AuthTotpDetails> {
 
         }
 
+        // Може викликатися з worker-потоку (LoginAndPasswordAuthMethod), тому зміну
+        // сцени (очищення поля) виконуємо через FX-потік, а не через reset().
         public CompletableFuture<String> awaitCode(int maxLen) {
             this.maxLength = maxLen;
-            reset();
+            CompletableFuture<String> old = rawCodeFuture;
+            rawCodeFuture = null;
+            if (old != null && !old.isDone()) {
+                old.completeExceptionally(USER_AUTH_CANCELED_EXCEPTION);
+            }
+            ContextHelper.runInFxThreadStatic(() -> {
+                if (totpField != null) totpField.setText("");
+            });
             rawCodeFuture = new CompletableFuture<>();
             return rawCodeFuture;
         }
 
         public void complete() {
             String code = getCode();
-            if (rawCodeFuture != null && !rawCodeFuture.isDone()) {
-                rawCodeFuture.complete(code);
+            CompletableFuture<String> raw = rawCodeFuture;
+            if (raw != null && !raw.isDone()) {
                 rawCodeFuture = null;
+                raw.complete(code);
                 return;
             }
-            AuthTOTPPassword totpPassword = new AuthTOTPPassword();
-            totpPassword.totp = code;
-            future.complete(new AuthFlow.LoginAndPasswordResult(null, totpPassword));
+            // future живий лише в потоці TotpAuthMethod; для standalone-оверлея
+            // (клієнтський azauth-логін) повторний сабміт після завершення — no-op.
+            if (future != null && !future.isDone()) {
+                AuthTOTPPassword totpPassword = new AuthTOTPPassword();
+                totpPassword.totp = code;
+                future.complete(new AuthFlow.LoginAndPasswordResult(null, totpPassword));
+            }
         }
 
         public void requestFocus() {

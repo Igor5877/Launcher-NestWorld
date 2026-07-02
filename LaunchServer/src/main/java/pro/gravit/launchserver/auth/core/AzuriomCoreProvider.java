@@ -10,11 +10,13 @@ import pro.gravit.launcher.base.ClientPermissions;
 import pro.gravit.launcher.base.events.request.GetAvailabilityAuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launcher.base.request.auth.details.AuthPasswordDetails;
+import pro.gravit.launcher.base.request.auth.details.AuthTotpDetails;
 import pro.gravit.launcher.base.request.auth.password.Auth2FAPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthPlainPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthTOTPPassword;
 import pro.gravit.launchserver.LaunchServer;
 import pro.gravit.launchserver.auth.AuthProviderPair;
+import pro.gravit.launchserver.auth.MySQLSourceConfig;
 import pro.gravit.launchserver.auth.core.interfaces.UserHardware;
 import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportExtendedCheckServer;
 import pro.gravit.launchserver.auth.core.interfaces.provider.AuthSupportHardware;
@@ -34,6 +36,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -42,9 +47,16 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     public String azuriomUrl;
     public String azuriomTokenColumn = "access_token";
     public String actionLogsTable = "action_logs";
+    public String bansTable = "bans";
+    public String rolesTable = "roles";
+    public String roleIdColumn = "role_id";
+    // Мінімальна пауза між записами автовходу в action_logs: реконекти WebSocket
+    // і щогодинні оновлення JWT не повинні засмічувати журнал адмін-панелі.
+    public long autoLoginLogCooldownSeconds = 600;
     public MySQLCoreProvider sql;
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
+    private transient ThreadPoolExecutor logExecutor;
 
     // --- Внутрішні реалізації для офлайн-режиму ---
     private record OfflineUser(String username, UUID uuid, ClientPermissions permissions) implements User {
@@ -97,12 +109,23 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
         if (sql != null) {
             // Azuriom stores game_id as a dashed UUID, but getUserByUUID() binds the
-            // parameter without dashes — match both formats unless a custom query is set.
+            // parameter without dashes. Re-insert the dashes into the PARAMETER (sargable,
+            // uses the index) instead of stripping them from the column via REPLACE(),
+            // which would force a full table scan on every lookup.
             if (sql.customQueryByUUIDSQL == null) {
-                sql.customQueryByUUIDSQL = "SELECT %s FROM %s WHERE REPLACE(%s, '-', '') = ? LIMIT 1"
+                sql.customQueryByUUIDSQL = ("SELECT %s FROM %s WHERE %s = " +
+                        "INSERT(INSERT(INSERT(INSERT(?,9,0,'-'),14,0,'-'),19,0,'-'),24,0,'-') LIMIT 1")
                         .formatted(sql.makeUserCols(), sql.table, sql.uuidColumn);
             }
             sql.init(server, pair);
+            // Черга логування автовходів: один фоновий потік, обмежена черга,
+            // переповнення мовчки відкидається — best-effort за визначенням.
+            logExecutor = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS,
+                    new ArrayBlockingQueue<>(256), r -> {
+                Thread t = new Thread(r, "azuriom-login-log");
+                t.setDaemon(true);
+                return t;
+            }, new ThreadPoolExecutor.DiscardPolicy());
             // Prevent updateAuth from clearing serverId — the default SQL does
             // SET serverId=NULL which breaks extendedCheckServer during server switch.
             if (sql.customUpdateAuthSQL == null) {
@@ -165,11 +188,21 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         try (Connection conn = sql.mySQLHolder.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, accessToken);
+            stmt.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (!rs.next()) {
                     throw new OAuthAccessTokenExpired("Token not found");
                 }
-                return UUID.fromString(rs.getString(sql.uuidColumn));
+                String rawUuid = rs.getString(sql.uuidColumn);
+                if (rawUuid == null || rawUuid.isEmpty()) {
+                    throw new OAuthAccessTokenExpired("User row has no UUID");
+                }
+                try {
+                    return AbstractSQLCoreProvider.toUUID(rawUuid); // приймає обидва формати
+                } catch (IllegalArgumentException | StringIndexOutOfBoundsException e) {
+                    logger.warn("Malformed UUID '{}' in {} for a valid token", rawUuid, sql.table);
+                    throw new OAuthAccessTokenExpired("Malformed UUID in database");
+                }
             }
         } catch (SQLException e) {
             logger.error("SQL error during token verification", e);
@@ -179,45 +212,109 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     // Mirrors what Azuriom's AuthController::verify() does (users.last_login_* + action_logs
     // entry 'users.auth.api.verified'), but via direct SQL so it works even when the site's
-    // access_token was rotated or set to NULL. Best-effort: failures must not break auth.
+    // access_token was rotated or set to NULL. Best-effort, off the auth thread: failures
+    // must neither break nor slow down auth.
     private void logSiteAutoLogin(UUID uuid, String ip) {
-        if (!isDatabaseMode) return;
-        String updateQuery = "UPDATE %s SET last_login_at = NOW(), last_login_ip = ? WHERE %s = ?"
+        if (!isDatabaseMode || logExecutor == null) return;
+        final String uuidStr = uuid.toString();
+        final String safeIp = ip == null ? "" : ip.replace("\"", "");
+        // Рядок у action_logs — лише коли попередній вхід старший за cooldown: реконекти
+        // та оновлення JWT посеред сесії не є новими входами. INSERT читає СТАРЕ
+        // значення last_login_at, тому виконується до UPDATE.
+        final String insertQuery = ("INSERT INTO %s (user_id, action, target_id, data, created_at, updated_at) " +
+                "SELECT id, 'users.auth.api.verified', NULL, ?, NOW(), NOW() FROM %s " +
+                "WHERE %s = ? AND (last_login_at IS NULL OR last_login_at < NOW() - INTERVAL %d SECOND)")
+                .formatted(actionLogsTable, sql.table, sql.uuidColumn, autoLoginLogCooldownSeconds);
+        final String updateQuery = "UPDATE %s SET last_login_at = NOW(), last_login_ip = ? WHERE %s = ?"
                 .formatted(sql.table, sql.uuidColumn);
-        String insertQuery = ("INSERT INTO %s (user_id, action, target_id, data, created_at, updated_at) " +
-                "SELECT id, 'users.auth.api.verified', NULL, ?, NOW(), NOW() FROM %s WHERE %s = ?")
-                .formatted(actionLogsTable, sql.table, sql.uuidColumn);
-        try (Connection conn = sql.mySQLHolder.getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(updateQuery)) {
-                stmt.setString(1, ip);
-                stmt.setString(2, uuid.toString());
-                stmt.executeUpdate();
+        logExecutor.execute(() -> {
+            try (Connection conn = sql.mySQLHolder.getConnection()) {
+                try (PreparedStatement stmt = conn.prepareStatement(insertQuery)) {
+                    stmt.setString(1, "{\"ip\":\"" + safeIp + "\"}");
+                    stmt.setString(2, uuidStr);
+                    stmt.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
+                    stmt.executeUpdate();
+                }
+                try (PreparedStatement stmt = conn.prepareStatement(updateQuery)) {
+                    stmt.setString(1, safeIp);
+                    stmt.setString(2, uuidStr);
+                    stmt.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
+                    stmt.executeUpdate();
+                }
+            } catch (SQLException e) {
+                logger.warn("Failed to log Azuriom auto-login for user {}: {}", uuidStr, e.getMessage());
             }
-            try (PreparedStatement stmt = conn.prepareStatement(insertQuery)) {
-                stmt.setString(1, "{\"ip\":\"" + (ip == null ? "" : ip.replace("\"", "")) + "\"}");
-                stmt.setString(2, uuid.toString());
-                stmt.executeUpdate();
+        });
+    }
+
+    // Активний бан на сайті = рядок у bans з removed_at IS NULL (Azuriom soft-delete'ить
+    // зняті бани). Повертає причину бану або null. SQL-помилка = fail-open з логом:
+    // збій БД не повинен відрізати всіх гравців (сам сайт кешує isBanned на годину).
+    private String getSiteBanReason(UUID uuid) {
+        if (!isDatabaseMode) return null;
+        String query = ("SELECT b.reason FROM %s b JOIN %s u ON b.user_id = u.id " +
+                "WHERE u.%s = ? AND b.removed_at IS NULL LIMIT 1")
+                .formatted(bansTable, sql.table, sql.uuidColumn);
+        try (Connection conn = sql.mySQLHolder.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, uuid.toString());
+            stmt.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String reason = rs.getString(1);
+                    return reason == null || reason.isEmpty() ? "banned" : reason;
+                }
             }
         } catch (SQLException e) {
-            logger.warn("Failed to log Azuriom auto-login for user {}: {}", uuid, e.getMessage());
+            logger.error("SQL error during site ban check for {}", uuid, e);
         }
+        return null;
+    }
+
+    // Роль користувача на сайті (users.role_id -> roles.name) для збагачення permissions
+    // на шляхах автовходу, де немає об'єкта azauth User.
+    private void enrichWithSiteRole(MySQLCoreProvider.MySQLUser localUser, UUID uuid) {
+        if (!isDatabaseMode || localUser.getPermissions() == null) return;
+        String query = "SELECT r.name FROM %s u JOIN %s r ON u.%s = r.id WHERE u.%s = ? LIMIT 1"
+                .formatted(sql.table, rolesTable, roleIdColumn, sql.uuidColumn);
+        try (Connection conn = sql.mySQLHolder.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, uuid.toString());
+            stmt.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String role = rs.getString(1);
+                    if (role != null && !role.isEmpty() && !localUser.getPermissions().hasRole(role)) {
+                        localUser.getPermissions().addRole(role);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("SQL error reading site role for {}", uuid, e);
+        }
+    }
+
+    // Розпізнаний токен: uuid користувача + чи це справді був наш JWT (а не токен сайта).
+    private record ResolvedToken(UUID uuid, boolean fromJwt) {
     }
 
     // Resolves a UUID from either an Azuriom access_token (plaintext in DB, sent on first
     // login right after the client's authenticate() call) or a LaunchServer JWT (all
-    // subsequent auto-logins and refreshes).
-    private UUID resolveUuidFromAccessToken(String accessToken) throws OAuthAccessTokenExpired {
+    // subsequent auto-logins and refreshes). The "eyJ" prefix is only a hint: a random
+    // Azuriom token can also start with it (~1 per 238k), so a failed JWT parse falls
+    // back to the database lookup instead of rejecting the login.
+    private ResolvedToken resolveAccessToken(String accessToken) throws OAuthAccessTokenExpired {
         if (isJwtToken(accessToken)) {
             try {
                 var info = LegacySessionHelper.getJwtInfoFromAccessToken(accessToken, server.keyAgreementManager.ecdsaPublicKey);
-                return info.uuid();
+                return new ResolvedToken(info.uuid(), true);
             } catch (ExpiredJwtException e) {
                 throw new OAuthAccessTokenExpired("JWT expired");
             } catch (JwtException e) {
-                throw new OAuthAccessTokenExpired("Invalid JWT: " + e.getMessage());
+                // не наш JWT — можливо, токен сайта з префіксом "eyJ"; пробуємо БД
             }
         }
-        return verifyTokenFromDatabase(accessToken);
+        return new ResolvedToken(verifyTokenFromDatabase(accessToken), false);
     }
 
     // JWT tokens from LaunchServer always start with the base64url-encoded header "eyJ" ({"alg":...}).
@@ -225,16 +322,48 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         return token != null && token.startsWith("eyJ");
     }
 
+    // Спільна збірка OAuth-звіту для reportFromOAuth() та authorize(): наш JWT як
+    // accessToken (сесія лаунчера не залежить від токена сайта, який ротується),
+    // refresh-токен від хешу пароля, опціональний minecraft-токен.
+    private AuthManager.AuthReport makeOAuthReport(MySQLCoreProvider.MySQLUser localUser, boolean minecraftAccess) throws IOException {
+        String oauthToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser,
+                LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds),
+                server.keyAgreementManager.ecdsaPrivateKey);
+        UserSession session = sql.createSession(localUser);
+        var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
+
+        if (minecraftAccess) {
+            String minecraftAccessToken = SecurityHelper.randomStringToken();
+            sql.updateAuth(localUser, minecraftAccessToken);
+            return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, oauthToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+        } else {
+            return AuthManager.AuthReport.ofOAuth(oauthToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
+        }
+    }
+
     @Override
     public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
         if (!isDatabaseMode) {
-            logger.warn("reportFromOAuth called but database mode is disabled, rejecting token.");
-            throw new pro.gravit.launchserver.auth.AuthException(
-                    pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
+            // Без БД токен сайта — єдина сесійна валюта; перевіряємо його через API
+            // сайта, як робив старий потік (verify() також оновить журнал панелі).
+            try {
+                com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
+                UserSession session = createOfflineSession(azuriomUser);
+                User user = session.getUser();
+                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
+                boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
+                if (minecraftAccess) {
+                    return AuthManager.AuthReport.ofOAuthWithMinecraft(SecurityHelper.randomStringToken(), accessToken, refreshToken, SECONDS.toMillis(3600), session);
+                }
+                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(3600), session);
+            } catch (AuthException e) {
+                throw new pro.gravit.launchserver.auth.AuthException(
+                        pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
+            }
         }
         try {
-            boolean isJwt = isJwtToken(accessToken);
-            UUID userUuid = resolveUuidFromAccessToken(accessToken);
+            ResolvedToken resolved = resolveAccessToken(accessToken);
+            UUID userUuid = resolved.uuid();
 
             boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
 
@@ -245,37 +374,27 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
             }
 
+            // Бани сайта живуть в окремій таблиці bans і не чіпають access_token,
+            // тому їх треба перевіряти явно на кожному автовході.
+            String banReason = getSiteBanReason(userUuid);
+            if (banReason != null) {
+                throw new pro.gravit.launchserver.auth.AuthException("User banned: " + banReason);
+            }
             checkHwidBan(localUser);
+            enrichWithSiteRole(localUser, userUuid);
 
-            // Always issue our own JWT: launcher sessions must not depend on Azuriom's
-            // access_token, which the site rotates on every login and clears on logout.
-            String oauthToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser,
-                    LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds),
-                    server.keyAgreementManager.ecdsaPrivateKey);
-
-            // JWT in = auto-login (manual logins arrive with a fresh Azuriom token and are
-            // already logged by the site's authenticate()). Record it in the admin panel.
-            if (isJwt) {
+            // JWT = автовхід (ручні входи приходять зі свіжим токеном сайта і вже
+            // залоговані authenticate()'ом самого сайта). Фіксуємо в адмін-панелі.
+            if (resolved.fromJwt()) {
                 logSiteAutoLogin(userUuid, context != null ? context.ip : null);
             }
 
-            UserSession session = sql.createSession(localUser);
-            var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
-
-            if (minecraftAccess) {
-                String minecraftAccessToken = SecurityHelper.randomStringToken();
-                sql.updateAuth(localUser, minecraftAccessToken);
-                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, oauthToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
-            } else {
-                return AuthManager.AuthReport.ofOAuth(oauthToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
-            }
+            return makeOAuthReport(localUser, minecraftAccess);
 
         } catch (OAuthAccessTokenExpired e) {
             // Expired JWT or rotated/cleared Azuriom token — both recoverable: the client
             // sends RefreshTokenRequest (validated against the password hash) and retries.
             throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
-        } catch (pro.gravit.launchserver.auth.AuthException e) {
-            throw e;
         }
     }
 
@@ -284,7 +403,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         if (!isDatabaseMode) {
             throw new OAuthAccessTokenExpired("Database mode is disabled");
         }
-        UUID userUuid = resolveUuidFromAccessToken(accessToken);
+        UUID userUuid = resolveAccessToken(accessToken).uuid();
 
         MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(userUuid);
 
@@ -293,13 +412,18 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             throw new OAuthAccessTokenExpired("User not found");
         }
 
+        // Wrapping bans as OAuthAccessTokenExpired forces a refresh cycle, after which
+        // reportFromOAuth() will reject the user with the proper ban message.
+        String banReason = getSiteBanReason(userUuid);
+        if (banReason != null) {
+            throw new OAuthAccessTokenExpired("BANNED: " + banReason);
+        }
         try {
             checkHwidBan(localUser);
         } catch (pro.gravit.launchserver.auth.AuthException e) {
-            // Wrapping as OAuthAccessTokenExpired forces a refresh cycle, after which
-            // reportFromOAuth() will reject the user with the proper ban message.
             throw new OAuthAccessTokenExpired("HWID_BAN: " + e.getMessage());
         }
+        enrichWithSiteRole(localUser, userUuid);
 
         return sql.createSession(localUser);
     }
@@ -368,21 +492,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             enrichUserWithAzuriomData(localUser, azuriomUser);
             checkHwidBan(localUser);
 
-            UserSession session = sql.createSession(localUser);
-            // Our own JWT, not azuriomUser.getAccessToken(): the site token is rotated by
-            // Azuriom on every authenticate() and must never be stored as a session credential.
-            var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser,
-                    LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds),
-                    server.keyAgreementManager.ecdsaPrivateKey);
-            var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
-
-            if (minecraftAccess) {
-                String minecraftAccessToken = SecurityHelper.randomStringToken();
-                sql.updateAuth(localUser, minecraftAccessToken);
-                return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
-            } else {
-                return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
-            }
+            return makeOAuthReport(localUser, minecraftAccess);
 
         } catch (AuthException e) {
             throw new pro.gravit.launchserver.auth.AuthException(e.getMessage(), e);
@@ -445,7 +555,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     public List<GetAvailabilityAuthRequestEvent.AuthAvailabilityDetails> getDetails(Client client) {
         AuthPasswordDetails details = new AuthPasswordDetails();
         details.url = azuriomUrl;
-        return List.of(details);
+        // AuthTotpDetails робить робочим серверний 2FA-шлях (authorize() кидає need2FA):
+        // без нього клієнт з plain-паролем упирається в '2FA method not found'.
+        return List.of(details, new AuthTotpDetails("TOTP", 6));
     }
 
     @Override
@@ -542,6 +654,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
     @Override
     public void close() {
+        if (logExecutor != null) {
+            logExecutor.shutdown();
+        }
         if (isDatabaseMode && sql != null) {
             sql.close();
         }

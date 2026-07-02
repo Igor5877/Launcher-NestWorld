@@ -175,7 +175,12 @@ public class LoginScene extends AbstractScene {
 
     public <T extends WebSocketEvent> void processing(Request<T> request, String text, Consumer<T> onSuccess,
             Consumer<String> onError) {
-        processRequest(text, request, onSuccess, (thr) -> onError.accept(thr.getCause().getMessage()), null);
+        processRequest(text, request, onSuccess, (thr) -> {
+            // Не кожен exception має cause/message — NPE тут мовчки з'їдав error-callback.
+            Throwable cause = thr.getCause() != null ? thr.getCause() : thr;
+            String message = cause.getMessage() != null ? cause.getMessage() : cause.toString();
+            onError.accept(message);
+        }, null);
     }
 
 

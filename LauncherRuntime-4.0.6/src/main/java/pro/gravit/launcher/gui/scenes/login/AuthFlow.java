@@ -254,23 +254,30 @@ public class AuthFlow {
         var application = accessor.getApplication();
         RefreshTokenRequest request = new RefreshTokenRequest(authAvailability.name,
                                                               application.runtimeSettings.oauthRefreshToken);
-        accessor.processing(request, application.getTranslation("runtime.overlay.processing.text.auth"), (result) -> {
+        try {
+            accessor.processing(request, application.getTranslation("runtime.overlay.processing.text.auth"), (result) -> {
+                refreshInProgress.set(false);
+                application.runtimeSettings.oauthAccessToken = result.oauth.accessToken;
+                application.runtimeSettings.oauthRefreshToken = result.oauth.refreshToken;
+                application.runtimeSettings.oauthExpire = result.oauth.expire == 0
+                        ? 0
+                        : System.currentTimeMillis() + result.oauth.expire;
+                Request.setOAuth(authAvailability.name, result.oauth);
+                AuthOAuthPassword password = new AuthOAuthPassword(application.runtimeSettings.oauthAccessToken);
+                LogHelper.info("Login with OAuth AccessToken");
+                loginWithOAuth(password, authAvailability, false);
+            }, (error) -> {
+                refreshInProgress.set(false);
+                application.runtimeSettings.oauthAccessToken = null;
+                application.runtimeSettings.oauthRefreshToken = null;
+                accessor.runInFxThread(this::loginWithGui);
+            });
+        } catch (Throwable t) {
+            // processing() кинув синхронно — без скидання прапорець залип би назавжди
+            // і всі наступні refresh мовчки пропускалися б до перезапуску лаунчера.
             refreshInProgress.set(false);
-            application.runtimeSettings.oauthAccessToken = result.oauth.accessToken;
-            application.runtimeSettings.oauthRefreshToken = result.oauth.refreshToken;
-            application.runtimeSettings.oauthExpire = result.oauth.expire == 0
-                    ? 0
-                    : System.currentTimeMillis() + result.oauth.expire;
-            Request.setOAuth(authAvailability.name, result.oauth);
-            AuthOAuthPassword password = new AuthOAuthPassword(application.runtimeSettings.oauthAccessToken);
-            LogHelper.info("Login with OAuth AccessToken");
-            loginWithOAuth(password, authAvailability, false);
-        }, (error) -> {
-            refreshInProgress.set(false);
-            application.runtimeSettings.oauthAccessToken = null;
-            application.runtimeSettings.oauthRefreshToken = null;
-            accessor.runInFxThread(this::loginWithGui);
-        });
+            throw t;
+        }
     }
 
     private void loginWithOAuth(AuthOAuthPassword password,
