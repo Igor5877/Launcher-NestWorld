@@ -29,6 +29,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -39,6 +41,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     private transient final Logger logger = LogManager.getLogger();
     public String azuriomUrl;
     public String azuriomTokenColumn = "access_token";
+    public String actionLogsTable = "action_logs";
     public MySQLCoreProvider sql;
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
@@ -168,25 +171,35 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         }
     }
 
-    // Reads the current Azuriom access_token for a user by UUID (plaintext, stored in users table).
-    // Used during JWT fallback to restore the Azuriom token for the client.
-    private String readAzuriomTokenForUser(UUID uuid) {
-        if (!isDatabaseMode) return null;
-        String query = "SELECT %s FROM %s WHERE %s = ?".formatted(azuriomTokenColumn, sql.table, sql.uuidColumn);
-        try (Connection conn = sql.mySQLHolder.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setString(1, uuid.toString());
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) return rs.getString(azuriomTokenColumn);
+    // Mirrors what Azuriom's AuthController::verify() does (users.last_login_* + action_logs
+    // entry 'users.auth.api.verified'), but via direct SQL so it works even when the site's
+    // access_token was rotated or set to NULL. Best-effort: failures must not break auth.
+    private void logSiteAutoLogin(UUID uuid, String ip) {
+        if (!isDatabaseMode) return;
+        String updateQuery = "UPDATE %s SET last_login_at = NOW(), last_login_ip = ? WHERE %s = ?"
+                .formatted(sql.table, sql.uuidColumn);
+        String insertQuery = ("INSERT INTO %s (user_id, action, target_id, data, created_at, updated_at) " +
+                "SELECT id, 'users.auth.api.verified', NULL, ?, NOW(), NOW() FROM %s WHERE %s = ?")
+                .formatted(actionLogsTable, sql.table, sql.uuidColumn);
+        try (Connection conn = sql.mySQLHolder.getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement(updateQuery)) {
+                stmt.setString(1, ip);
+                stmt.setString(2, uuid.toString());
+                stmt.executeUpdate();
+            }
+            try (PreparedStatement stmt = conn.prepareStatement(insertQuery)) {
+                stmt.setString(1, "{\"ip\":\"" + (ip == null ? "" : ip.replace("\"", "")) + "\"}");
+                stmt.setString(2, uuid.toString());
+                stmt.executeUpdate();
             }
         } catch (SQLException e) {
-            logger.error("SQL error reading Azuriom token for user {}", uuid, e);
+            logger.warn("Failed to log Azuriom auto-login for user {}: {}", uuid, e.getMessage());
         }
-        return null;
     }
 
-    // Resolves a UUID from either an Azuriom access_token (plaintext in DB) or a LaunchServer JWT.
-    // After refreshAccessToken() the stored oauthAccessToken becomes a JWT, so both formats must be handled.
+    // Resolves a UUID from either an Azuriom access_token (plaintext in DB, sent on first
+    // login right after the client's authenticate() call) or a LaunchServer JWT (all
+    // subsequent auto-logins and refreshes).
     private UUID resolveUuidFromAccessToken(String accessToken) throws OAuthAccessTokenExpired {
         if (isJwtToken(accessToken)) {
             try {
@@ -217,16 +230,6 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             boolean isJwt = isJwtToken(accessToken);
             UUID userUuid = resolveUuidFromAccessToken(accessToken);
 
-            // After JWT fallback: read the current Azuriom token from DB and give it back to client.
-            // Client stores it, so next session uses the fresh Azuriom token (not the JWT).
-            String oauthToken = accessToken;
-            if (isJwt) {
-                String azuriomToken = readAzuriomTokenForUser(userUuid);
-                if (azuriomToken != null && !azuriomToken.isEmpty()) {
-                    oauthToken = azuriomToken;
-                }
-            }
-
             boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
 
             MySQLCoreProvider.MySQLUser localUser = (MySQLCoreProvider.MySQLUser) sql.getUserByUUID(userUuid);
@@ -237,6 +240,18 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             }
 
             checkHwidBan(localUser);
+
+            // Always issue our own JWT: launcher sessions must not depend on Azuriom's
+            // access_token, which the site rotates on every login and clears on logout.
+            String oauthToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser,
+                    LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds),
+                    server.keyAgreementManager.ecdsaPrivateKey);
+
+            // JWT in = auto-login (manual logins arrive with a fresh Azuriom token and are
+            // already logged by the site's authenticate()). Record it in the admin panel.
+            if (isJwt) {
+                logSiteAutoLogin(userUuid, context != null ? context.ip : null);
+            }
 
             UserSession session = sql.createSession(localUser);
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
@@ -250,12 +265,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             }
 
         } catch (OAuthAccessTokenExpired e) {
-            if (!isJwtToken(accessToken)) {
-                // Azuriom token replaced (user logged in on website) — client refreshes via oauthRefreshToken.
-                throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
-            }
-            // JWT expired/invalid — user must log in again.
-            throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_INVALID);
+            // Expired JWT or rotated/cleared Azuriom token — both recoverable: the client
+            // sends RefreshTokenRequest (validated against the password hash) and retries.
+            throw new pro.gravit.launchserver.auth.AuthException(pro.gravit.launcher.base.events.request.AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
         } catch (pro.gravit.launchserver.auth.AuthException e) {
             throw e;
         }
@@ -351,7 +363,11 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             checkHwidBan(localUser);
 
             UserSession session = sql.createSession(localUser);
-            var accessToken = azuriomUser.getAccessToken();
+            // Our own JWT, not azuriomUser.getAccessToken(): the site token is rotated by
+            // Azuriom on every authenticate() and must never be stored as a session credential.
+            var accessToken = LegacySessionHelper.makeAccessJwtTokenFromString(localUser,
+                    LocalDateTime.now(Clock.systemUTC()).plusSeconds(sql.expireSeconds),
+                    server.keyAgreementManager.ecdsaPrivateKey);
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
 
             if (minecraftAccess) {

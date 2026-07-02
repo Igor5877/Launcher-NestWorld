@@ -15,7 +15,6 @@ import pro.gravit.launcher.base.request.auth.password.AuthMultiPassword;
 import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
 import pro.gravit.launcher.gui.scenes.login.methods.*;
 import pro.gravit.utils.helper.LogHelper;
-import com.azuriom.azauth.AuthClient;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,9 +32,8 @@ public class AuthFlow {
     private volatile AbstractAuthMethod<GetAvailabilityAuthRequestEvent.AuthAvailabilityDetails> authMethodOnShow;
     private final Consumer<SuccessAuth> onSuccessAuth;
     public boolean isLoginStarted;
-    // Guards against two concurrent refreshToken() calls (e.g. expired-token path +
-    // Azuriom verify fallback firing at once), which would invalidate each other's
-    // new refresh token and break re-auth.
+    // Guards against two concurrent refreshToken() calls, which would invalidate
+    // each other's new refresh token and break re-auth.
     private final java.util.concurrent.atomic.AtomicBoolean refreshInProgress =
             new java.util.concurrent.atomic.AtomicBoolean(false);
 
@@ -234,83 +232,17 @@ public class AuthFlow {
             refreshToken();
             return true;
         }
+        // Auto-login uses only LaunchServer JWT + refresh token; auto-logins are recorded
+        // in the Azuriom admin panel server-side (AzuriomCoreProvider.logSiteAutoLogin).
         String savedToken = application.runtimeSettings.oauthAccessToken;
-        String azuriomUrl = getAzuriomUrl();
-        if (azuriomUrl != null && !isJwtToken(savedToken)) {
-            // Verify directly with Azuriom so admin panel logs the client's real IP.
-            verifyWithAzuriomThenLogin(savedToken, azuriomUrl);
-        } else {
-            if (azuriomUrl != null) {
-                // JWT path: verify with Azuriom in background so admin panel logs the login.
-                String azuriomToken = getAzuriomToken();
-                if (azuriomToken != null) {
-                    final String url = azuriomUrl;
-                    final String token = azuriomToken;
-                    CompletableFuture.runAsync(() -> {
-                        try {
-                            new AuthClient(url).verify(token);
-                            LogHelper.debug("Azuriom token verified (JWT auto-login, IP logged)");
-                        } catch (Exception e) {
-                            LogHelper.debug("Azuriom background verify failed: %s", e.getMessage());
-                        }
-                    });
-                }
-            }
-            Request.setOAuth(authAvailability.name,
-                    new AuthRequestEvent.OAuthRequestEvent(savedToken,
-                            application.runtimeSettings.oauthRefreshToken,
-                            application.runtimeSettings.oauthExpire),
-                    application.runtimeSettings.oauthExpire);
-            LogHelper.info("Login with OAuth AccessToken");
-            loginWithOAuth(new AuthOAuthPassword(savedToken), authAvailability, true);
-        }
+        Request.setOAuth(authAvailability.name,
+                new AuthRequestEvent.OAuthRequestEvent(savedToken,
+                        application.runtimeSettings.oauthRefreshToken,
+                        application.runtimeSettings.oauthExpire),
+                application.runtimeSettings.oauthExpire);
+        LogHelper.info("Login with OAuth AccessToken");
+        loginWithOAuth(new AuthOAuthPassword(savedToken), authAvailability, true);
         return true;
-    }
-
-    private void verifyWithAzuriomThenLogin(String savedToken, String azuriomUrl) {
-        var application = accessor.getApplication();
-        CompletableFuture.runAsync(() -> {
-            try {
-                new AuthClient(azuriomUrl).verify(savedToken);
-                // Token valid — Azuriom logged client IP. Now auth with LaunchServer.
-                Request.setOAuth(authAvailability.name,
-                        new AuthRequestEvent.OAuthRequestEvent(savedToken,
-                                application.runtimeSettings.oauthRefreshToken,
-                                application.runtimeSettings.oauthExpire),
-                        application.runtimeSettings.oauthExpire);
-                LogHelper.info("Azuriom token verified (IP logged), logging into LaunchServer");
-                loginWithOAuth(new AuthOAuthPassword(savedToken), authAvailability, true);
-            } catch (Exception e) {
-                // Token replaced (user logged in on website) — refresh to get JWT, then server reads new token.
-                LogHelper.info("Azuriom token invalid during auto-login, refreshing: {}", e.getMessage());
-                refreshToken();
-            }
-        }).exceptionally((th) -> {
-            // refreshToken()/loginWithOAuth() may throw synchronously; without this the
-            // exception would be swallowed by the common pool and auto-login would hang.
-            LogHelper.error("Azuriom auto-login failed unexpectedly: %s", th.getMessage());
-            accessor.runInFxThread(this::loginWithGui);
-            return null;
-        });
-    }
-
-    private String getAzuriomUrl() {
-        if (authAvailability.details == null || authAvailability.details.isEmpty()) return null;
-        var details = authAvailability.details.get(0);
-        if (details instanceof AuthPasswordDetails pd) return pd.url;
-        return null;
-    }
-
-    static boolean isJwtToken(String token) {
-        return token != null && token.startsWith("eyJ");
-    }
-
-    private String getAzuriomToken() {
-        var password = accessor.getApplication().runtimeSettings.password;
-        if (password instanceof AuthOAuthPassword oap && !isJwtToken(oap.accessToken)) {
-            return oap.accessToken;
-        }
-        return null;
     }
 
     private void refreshToken() {

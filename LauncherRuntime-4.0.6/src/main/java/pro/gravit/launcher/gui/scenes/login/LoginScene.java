@@ -218,14 +218,9 @@ public class LoginScene extends AbstractScene {
                 application.runtimeSettings.oauthAccessToken = result.oauth.accessToken;
                 application.runtimeSettings.oauthRefreshToken = result.oauth.refreshToken;
                 application.runtimeSettings.oauthExpire = Request.getTokenExpiredTime();
-                if (successAuth.recentPassword() instanceof AuthOAuthPassword oap
-                        && !AuthFlow.isJwtToken(oap.accessToken)) {
-                    // Save Azuriom token so verify() can be called on JWT auto-logins.
-                    application.runtimeSettings.password = successAuth.recentPassword();
-                } else if (successAuth.recentPassword() != null) {
-                    application.runtimeSettings.password = null;
-                }
-                // recentPassword == null (auto-login) → preserve existing Azuriom token.
+                // The one-time Azuriom token must never be kept: the site rotates it on
+                // every login. The JWT + refresh token above are the only credentials.
+                application.runtimeSettings.password = null;
             }
             application.runtimeSettings.lastAuth = authAvailability;
         }
