@@ -128,6 +128,14 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 sql.customQueryByUUIDSQL = "SELECT %s FROM %s WHERE %s = %s LIMIT 1"
                         .formatted(sql.makeUserCols(), sql.table, sql.uuidColumn, readParam);
             }
+            // Permissions біндяться ДЕФІСНИМ uuid (requestPermissions(user.uuid.toString())) —
+            // для бездефісної БД нормалізуємо параметр (простий варіант без rolesTable;
+            // з rolesTable дефолт — рекурсивний CTE, його не чіпаємо: задайте custom-запит).
+            if (dashlessUuidStorage && sql.permissionsTable != null && sql.rolesTable == null
+                    && sql.customQueryPermissionsByUUIDSQL == null) {
+                sql.customQueryPermissionsByUUIDSQL = "SELECT (%s) FROM %s WHERE %s = REPLACE(?, '-', '')"
+                        .formatted(sql.permissionsPermissionColumn, sql.permissionsTable, sql.permissionsUUIDColumn);
+            }
             sql.init(server, pair);
             // Черга логування автовходів: один фоновий потік, обмежена черга,
             // переповнення мовчки відкидається — best-effort за визначенням.
