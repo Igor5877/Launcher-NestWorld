@@ -33,7 +33,8 @@ public class MySQLCoreProvider extends AbstractSQLCoreProvider implements AuthSu
     private transient String sqlCreateHWIDLog;
     private transient String sqlUpdateHardwarePublicKey;
     private transient String sqlUpdateHardwareBanned;
-    private transient String sqlUpdateUsers;
+    // package-private: AzuriomCoreProvider переприв'язує WHERE-вираз під формат UUID у БД
+    transient String sqlUpdateUsers;
     private transient String sqlUsersByHwidId;
 
     @Override

@@ -53,9 +53,14 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     // Мінімальна пауза між записами автовходу в action_logs: реконекти WebSocket
     // і щогодинні оновлення JWT не повинні засмічувати журнал адмін-панелі.
     public long autoLoginLogCooldownSeconds = 600;
+    // Формат зберігання UUID у колонці game_id: "auto" (визначити по першому запису),
+    // "dashed" (b5de213e-12bd-...) або "dashless" (b5de213e12bd...). Стандартний Azuriom
+    // пише з дефісами, але старі бази/плагіни (AzLink) — без.
+    public String uuidFormat = "auto";
     public MySQLCoreProvider sql;
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
+    private transient boolean dashlessUuidStorage = false;
     private transient ThreadPoolExecutor logExecutor;
 
     // --- Внутрішні реалізації для офлайн-режиму ---
@@ -108,14 +113,20 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         this.authClient = new AuthClient(azuriomUrl);
 
         if (sql != null) {
-            // Azuriom stores game_id as a dashed UUID, but getUserByUUID() binds the
-            // parameter without dashes. Re-insert the dashes into the PARAMETER (sargable,
-            // uses the index) instead of stripping them from the column via REPLACE(),
-            // which would force a full table scan on every lookup.
+            detectUuidStorageFormat();
+            // Стокові методи біндять UUID у різних форматах (читання — без дефісів,
+            // записи — з дефісами), а БД може зберігати будь-який. Нормалізуємо
+            // ПАРАМЕТР до формату колонки: вираз навколо ? — sargable, індекс працює
+            // (на відміну від REPLACE() навколо колонки, що дає повний скан).
+            // Параметр читань приходить БЕЗ дефісів (getUserByUUID їх зрізає):
+            String readParam = dashlessUuidStorage
+                    ? "?"
+                    : "INSERT(INSERT(INSERT(INSERT(?,9,0,'-'),14,0,'-'),19,0,'-'),24,0,'-')";
+            // Параметр записів приходить З дефісами (updateAuth/updateServerID/hwid):
+            String writeParam = dashlessUuidStorage ? "REPLACE(?, '-', '')" : "?";
             if (sql.customQueryByUUIDSQL == null) {
-                sql.customQueryByUUIDSQL = ("SELECT %s FROM %s WHERE %s = " +
-                        "INSERT(INSERT(INSERT(INSERT(?,9,0,'-'),14,0,'-'),19,0,'-'),24,0,'-') LIMIT 1")
-                        .formatted(sql.makeUserCols(), sql.table, sql.uuidColumn);
+                sql.customQueryByUUIDSQL = "SELECT %s FROM %s WHERE %s = %s LIMIT 1"
+                        .formatted(sql.makeUserCols(), sql.table, sql.uuidColumn, readParam);
             }
             sql.init(server, pair);
             // Черга логування автовходів: один фоновий потік, обмежена черга,
@@ -129,9 +140,16 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             // Prevent updateAuth from clearing serverId — the default SQL does
             // SET serverId=NULL which breaks extendedCheckServer during server switch.
             if (sql.customUpdateAuthSQL == null) {
-                sql.updateAuthSQL = "UPDATE %s SET %s=? WHERE %s=?".formatted(
-                        sql.table, sql.accessTokenColumn, sql.uuidColumn);
+                sql.updateAuthSQL = "UPDATE %s SET %s=? WHERE %s = %s".formatted(
+                        sql.table, sql.accessTokenColumn, sql.uuidColumn, writeParam);
             }
+            if (sql.customUpdateServerIdSQL == null) {
+                sql.updateServerIDSQL = "UPDATE %s SET %s=? WHERE %s = %s".formatted(
+                        sql.table, sql.serverIDColumn, sql.uuidColumn, writeParam);
+            }
+            // HWID-прив'язка (UPDATE users SET hwid_id=? WHERE uuid=?) — той самий формат:
+            sql.sqlUpdateUsers = "UPDATE %s SET `%s` = ? WHERE %s = %s".formatted(
+                    sql.table, sql.hardwareIdColumn, sql.uuidColumn, writeParam);
             isDatabaseMode = true;
             if (sql.accessTokenColumn.equals(azuriomTokenColumn)) {
                 logger.warn("CONFIGURATION WARNING: sql.accessTokenColumn ('{}') == azuriomTokenColumn. " +
@@ -178,6 +196,44 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         return new OfflineUserSession(user);
     }
 
+    // Визначає, як БД зберігає UUID: з дефісами чи без. Порядок: явний конфіг
+    // uuidFormat, інакше — перший непорожній запис у таблиці. Порожня таблиця або
+    // збій БД → дефісний формат (стандарт Azuriom) з попередженням у лог.
+    private void detectUuidStorageFormat() {
+        if ("dashed".equalsIgnoreCase(uuidFormat)) {
+            dashlessUuidStorage = false;
+            return;
+        }
+        if ("dashless".equalsIgnoreCase(uuidFormat)) {
+            dashlessUuidStorage = true;
+            return;
+        }
+        String query = "SELECT %s FROM %s WHERE %s IS NOT NULL AND %s != '' LIMIT 1"
+                .formatted(sql.uuidColumn, sql.table, sql.uuidColumn, sql.uuidColumn);
+        try (Connection conn = sql.mySQLHolder.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    dashlessUuidStorage = rs.getString(1).indexOf('-') < 0;
+                    logger.info("Azuriom UUID storage format detected: {}",
+                            dashlessUuidStorage ? "dashless" : "dashed");
+                    return;
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Cannot detect UUID storage format, assuming dashed", e);
+        }
+        logger.warn("UUID format detection: no rows in {} — assuming dashed (set uuidFormat in config to override)", sql.table);
+        dashlessUuidStorage = false;
+    }
+
+    // UUID у форматі, в якому його зберігає БД, — для власних запитів провайдера.
+    private String uuidParam(UUID uuid) {
+        String s = uuid.toString();
+        return dashlessUuidStorage ? s.replace("-", "") : s;
+    }
+
     // Verifies an Azuriom access_token against the shared database (stored as plaintext).
     // Returns the user UUID on success, throws OAuthAccessTokenExpired on failure.
     private UUID verifyTokenFromDatabase(String accessToken) throws OAuthAccessTokenExpired {
@@ -216,7 +272,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     // must neither break nor slow down auth.
     private void logSiteAutoLogin(UUID uuid, String ip) {
         if (!isDatabaseMode || logExecutor == null) return;
-        final String uuidStr = uuid.toString();
+        final String uuidStr = uuidParam(uuid);
         final String safeIp = ip == null ? "" : ip.replace("\"", "");
         // Рядок у action_logs — лише коли попередній вхід старший за cooldown: реконекти
         // та оновлення JWT посеред сесії не є новими входами. INSERT читає СТАРЕ
@@ -257,7 +313,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 .formatted(bansTable, sql.table, sql.uuidColumn);
         try (Connection conn = sql.mySQLHolder.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setString(1, uuid.toString());
+            stmt.setString(1, uuidParam(uuid));
             stmt.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -279,7 +335,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 .formatted(sql.table, rolesTable, roleIdColumn, sql.uuidColumn);
         try (Connection conn = sql.mySQLHolder.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setString(1, uuid.toString());
+            stmt.setString(1, uuidParam(uuid));
             stmt.setQueryTimeout(MySQLSourceConfig.TIMEOUT);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
