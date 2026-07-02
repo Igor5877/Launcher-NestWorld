@@ -274,13 +274,16 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         if (!isDatabaseMode || logExecutor == null) return;
         final String uuidStr = uuidParam(uuid);
         final String safeIp = ip == null ? "" : ip.replace("\"", "");
-        // Рядок у action_logs — лише коли попередній вхід старший за cooldown: реконекти
-        // та оновлення JWT посеред сесії не є новими входами. INSERT читає СТАРЕ
-        // значення last_login_at, тому виконується до UPDATE.
+        // Рядок у action_logs — лише коли НАШ попередній запис старший за cooldown:
+        // реконекти та оновлення JWT посеред сесії не є новими входами. Порівнюємо
+        // тільки з власними записами (їх пише той самий NOW()) — last_login_at,
+        // записаний Laravel'ом, може бути в іншій таймзоні й «жити в майбутньому»,
+        // що придушувало б логування на години після входу на сайті.
         final String insertQuery = ("INSERT INTO %s (user_id, action, target_id, data, created_at, updated_at) " +
-                "SELECT id, 'users.auth.api.verified', NULL, ?, NOW(), NOW() FROM %s " +
-                "WHERE %s = ? AND (last_login_at IS NULL OR last_login_at < NOW() - INTERVAL %d SECOND)")
-                .formatted(actionLogsTable, sql.table, sql.uuidColumn, autoLoginLogCooldownSeconds);
+                "SELECT u.id, 'users.auth.api.verified', NULL, ?, NOW(), NOW() FROM %s u " +
+                "WHERE u.%s = ? AND NOT EXISTS (SELECT 1 FROM %s al WHERE al.user_id = u.id " +
+                "AND al.action = 'users.auth.api.verified' AND al.created_at > NOW() - INTERVAL %d SECOND)")
+                .formatted(actionLogsTable, sql.table, sql.uuidColumn, actionLogsTable, autoLoginLogCooldownSeconds);
         final String updateQuery = "UPDATE %s SET last_login_at = NOW(), last_login_ip = ? WHERE %s = ?"
                 .formatted(sql.table, sql.uuidColumn);
         logExecutor.execute(() -> {

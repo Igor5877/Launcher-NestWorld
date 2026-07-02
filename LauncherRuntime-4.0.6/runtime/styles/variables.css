@@ -1,33 +1,36 @@
 
-/*-- Var library colors --*/
+/*-- NestWorld theme — палітра з дизайн-системи "NestWorld Launcher Site Theme" --*/
+/*   Токени: bg #111114 / #17171b / #1e1e24, акцент #9F0200 (hover #C0392B, dark #7A0100),
+     текст #E8E8EC / #8888A0 / #44444E, панелі rgba(255,255,255,.04/.07),
+     зелений #2ecc71. Роль стокового -fx-violet (акцент) виконує червоний бренду. */
 * {
-    -fx-green: #48D792;
-    -fx-green-hover: #48D792;
-    -fx-greenTr: rgba(34, 234, 181, 0.12);
-    -fx-colors-text: #2C2C2C;
-    -fx-colors-text-hover: #626262;
-    -fx-colors-unactive: #CECECE;
-    -fx-colors-unactive-hover: #CECECE;
-    -fx-colors-base: #FFFFFF;
-    -fx-colors-baseG: #FAFAFF;
-    -fx-colors-baseGA: rgba(250, 250, 255, 0.5);
-    -fx-glass: rgba(205, 205, 205, 0.22);
-    -fx-glass-hover: rgba(178, 178, 178, 0.28);
-    -fx-colors-text-secondary: #94A1A8;
-    -fx-bg2: #FAFAFF;
-    -fx-red: #DB4D4D;
-    -fx-red-hover: #BA2E35;
-    -fx-gray: #F2F2F2;
-    -fx-violet: #6B36FF;
-    -fx-violet-hover: linear-gradient(to bottom right, #8D4CE0 0%, #5711FA 100%);
-    -fx-violet-hover2: rgba(210, 208, 225, 0.66);
-    -fx-violetTr: rgba(107, 54, 255, 0.18);
-    -fx-header: #00aeff;
-    -fx-header-hover: #D0D6D9;
-    -fx-scene-card: rgba(250, 250, 255, 0.50);
-    -fx-violetGR: linear-gradient(#8D4CE0 10.39%, #5D35B9 68.07%, #FAFAFF 68.07%);
+    -fx-green: #2ecc71;
+    -fx-green-hover: #58d68d;
+    -fx-greenTr: rgba(46, 204, 113, 0.12);
+    -fx-colors-text: #E8E8EC;
+    -fx-colors-text-hover: #FFFFFF;
+    -fx-colors-unactive: #44444E;
+    -fx-colors-unactive-hover: #8888A0;
+    -fx-colors-base: #111114;
+    -fx-colors-baseG: #17171b;
+    -fx-colors-baseGA: rgba(30, 30, 36, 0.6);
+    -fx-glass: rgba(255, 255, 255, 0.04);
+    -fx-glass-hover: rgba(255, 255, 255, 0.07);
+    -fx-colors-text-secondary: #8888A0;
+    -fx-bg2: #1e1e24;
+    -fx-red: #C0392B;
+    -fx-red-hover: #E74C3C;
+    -fx-gray: #1e1e24;
+    -fx-violet: #9F0200;
+    -fx-violet-hover: linear-gradient(to bottom right, #C0392B 0%, #9F0200 100%);
+    -fx-violet-hover2: rgba(159, 2, 0, 0.25);
+    -fx-violetTr: rgba(159, 2, 0, 0.12);
+    -fx-header: #8888A0;
+    -fx-header-hover: #E8E8EC;
+    -fx-scene-card: rgba(23, 23, 27, 0.82);
+    -fx-violetGR: linear-gradient(#C0392B 10.39%, #9F0200 68.07%, #17171b 68.07%);
     -fx-ramGR: linear-gradient(from 50% 50% to 100% 100%, -fx-green, -fx-violet);
-    -fx-updateGR: linear-gradient(from 20% 20% to 100% 100%, -fx-violet, #5D35B9);
-    -fx-errorGR: linear-gradient(from 20% 20% to 100% 100%, #8D4CE0, #B93639);
-    -fx-effect-dropshadow: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 30, 0, 0, 0);
+    -fx-updateGR: linear-gradient(from 20% 20% to 100% 100%, -fx-violet, #7A0100);
+    -fx-errorGR: linear-gradient(from 20% 20% to 100% 100%, #C0392B, #7A0100);
+    -fx-effect-dropshadow: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 30, 0, 0, 0);
 }
