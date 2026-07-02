@@ -29,10 +29,20 @@ public class NettyIpForwardHandler extends MessageToMessageDecoder<HttpRequest> 
         HttpHeaders headers = msg.headers();
         String realIP = null;
         if (headers.contains("X-Forwarded-For")) {
-            realIP = headers.get("X-Forwarded-For");
+            // Кожен проксі ДОПИСУЄ адресу свого клієнта в кінець списку, тож довіряти
+            // можна лише останньому елементу (його додав найближчий до нас проксі);
+            // перші елементи клієнт може підробити власним заголовком.
+            String xff = headers.get("X-Forwarded-For");
+            int idx = xff.lastIndexOf(',');
+            realIP = (idx >= 0 ? xff.substring(idx + 1) : xff).trim();
         }
         if (headers.contains("X-Real-IP")) {
             realIP = headers.get("X-Real-IP");
+        }
+        // Cloudflare завжди перезаписує цей заголовок реальною адресою клієнта —
+        // найвищий пріоритет, підробити його через CF неможливо.
+        if (headers.contains("CF-Connecting-IP")) {
+            realIP = headers.get("CF-Connecting-IP");
         }
         if (realIP != null) {
             context.ip = realIP;
