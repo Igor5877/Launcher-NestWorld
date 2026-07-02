@@ -107,12 +107,16 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
                 throw new RuntimeException(e.getMessage(), e);
             }
         }).whenComplete((res, ex) -> {
-            if (ex != null) {
-                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-                overlay.future.completeExceptionally(cause);
-            } else {
-                overlay.future.complete(res);
-            }
+            // Завершуємо future в FX-потоці: подальший ланцюжок AuthFlow працює зі сценою,
+            // і продовження з worker-потоку мовчки падає з IllegalStateException.
+            ContextHelper.runInFxThreadStatic(() -> {
+                if (ex != null) {
+                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                    overlay.future.completeExceptionally(cause);
+                } else {
+                    overlay.future.complete(res);
+                }
+            });
         });
     }
 
