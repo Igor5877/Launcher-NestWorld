@@ -36,6 +36,9 @@ public class AuthFlow {
     // each other's new refresh token and break re-auth.
     private final java.util.concurrent.atomic.AtomicBoolean refreshInProgress =
             new java.util.concurrent.atomic.AtomicBoolean(false);
+    // Після невдалого refresh через мережу токени збережені, але повторювати
+    // OAuth-цикл у цій же сесії не можна — інакше loginWithGui зациклиться.
+    private volatile boolean skipOAuthOnce;
 
     public AuthFlow(LoginScene.LoginSceneAccessor accessor, Consumer<SuccessAuth> onSuccessAuth) {
         this.accessor = accessor;
@@ -221,6 +224,10 @@ public class AuthFlow {
 
 
     private boolean tryOAuthLogin() {
+        if (skipOAuthOnce) {
+            skipOAuthOnce = false;
+            return false;
+        }
         var application = accessor.getApplication();
         if (application.runtimeSettings.lastAuth == null
                 || !authAvailability.name.equals(application.runtimeSettings.lastAuth.name)
@@ -268,8 +275,17 @@ public class AuthFlow {
                 loginWithOAuth(password, authAvailability, false);
             }, (error) -> {
                 refreshInProgress.set(false);
-                application.runtimeSettings.oauthAccessToken = null;
-                application.runtimeSettings.oauthRefreshToken = null;
+                // Стираємо збережений вхід лише коли СЕРВЕР відхилив refresh-токен.
+                // Мережевий збій (офлайн-запуск, сервер недоступний) не привід:
+                // інакше один запуск без інтернету назавжди скидав автовхід.
+                if (error != null && (error.contains("RefreshToken") || error.contains("Invalid request")
+                        || error.contains("auth_id"))) {
+                    application.runtimeSettings.oauthAccessToken = null;
+                    application.runtimeSettings.oauthRefreshToken = null;
+                } else {
+                    // токени лишаються на наступний запуск; зараз показуємо форму
+                    skipOAuthOnce = true;
+                }
                 accessor.runInFxThread(this::loginWithGui);
             });
         } catch (Throwable t) {
