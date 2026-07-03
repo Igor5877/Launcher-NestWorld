@@ -25,6 +25,7 @@ public class CrashReportResponse extends SimpleResponse {
     public String content;
     public String gameVersion;
     public String forgeVersion;
+    public String profileName;
     public long timestamp;
 
     @Override
@@ -79,7 +80,7 @@ public class CrashReportResponse extends SimpleResponse {
         }
 
         try {
-            String clientName = client.profile == null ? "unknown" : client.profile.getTitle();
+            String clientName = resolveClientName(client);
             // Створюємо директорію користувача
             Path userDir = crashComponent.getUserCrashDir(clientName, username);
 
@@ -95,6 +96,12 @@ public class CrashReportResponse extends SimpleResponse {
 
             logger.info("Crash report saved for user '{}': {}", username, filePath.toAbsolutePath());
 
+            // Створюємо тікет у Azuriom Support (якщо інтеграцію налаштовано)
+            crashComponent.submitTicketAsync(username, clientName,
+                gameVersion == null ? "unknown" : gameVersion,
+                forgeVersion == null ? "unknown" : forgeVersion,
+                content, filePath.toAbsolutePath().toString());
+
             sendResult(new CrashReportRequestEvent(true, "Crash report saved successfully",
                 filePath.toAbsolutePath().toString()));
 
@@ -102,6 +109,17 @@ public class CrashReportResponse extends SimpleResponse {
             logger.error("Failed to save crash report for user '{}'", username, e);
             sendResult(new CrashReportRequestEvent(false, "Failed to save crash report"));
         }
+    }
+
+    // Пріоритет: профіль сесії (авторитетний) → назва профілю від клієнта → "unknown"
+    private String resolveClientName(Client client) {
+        if (client.profile != null) {
+            return client.profile.getTitle();
+        }
+        if (profileName != null && !profileName.isBlank()) {
+            return profileName;
+        }
+        return "unknown";
     }
 
     private CrashReportComponent getCrashReportComponent() {

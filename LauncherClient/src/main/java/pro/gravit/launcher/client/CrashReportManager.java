@@ -41,6 +41,7 @@ public class CrashReportManager {
     private static volatile boolean initialized = false;
     private static Path crashReportsDir;
     private static Path sentReportsLogFile;
+    private static volatile String profileName;
     private static final Set<String> sentReports = ConcurrentHashMap.newKeySet();
     private static final Set<String> inFlight = ConcurrentHashMap.newKeySet();
     private static final Object sentLogLock = new Object();
@@ -49,9 +50,10 @@ public class CrashReportManager {
     private static WatchService watchService;
     private static Thread watchThread;
 
-    public static void initialize(Path gameDir) {
+    public static void initialize(Path gameDir, String profile) {
         if (initialized) return;
 
+        profileName = profile;
         crashReportsDir = gameDir.resolve("crash-reports");
         sentReportsLogFile = gameDir.resolve("sent_crash_reports.log");
 
@@ -217,7 +219,7 @@ public class CrashReportManager {
         String gameVersion = extractGameVersion(content);
         String forgeVersion = extractForgeVersion(content);
 
-        CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion);
+        CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion, profileName);
         CrashReportRequestEvent event = request.request();
 
         if (!event.success) {
@@ -304,7 +306,7 @@ public class CrashReportManager {
                 String gameVersion = extractGameVersion(content);
                 String forgeVersion = extractForgeVersion(content);
 
-                CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion);
+                CrashReportRequest request = new CrashReportRequest(filename, content, gameVersion, forgeVersion, profileName);
                 return request.request();
 
             } catch (Exception e) {

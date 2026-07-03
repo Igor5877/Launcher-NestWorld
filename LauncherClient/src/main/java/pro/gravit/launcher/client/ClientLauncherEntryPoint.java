@@ -214,7 +214,7 @@ public class ClientLauncherEntryPoint {
             
             // Ініціалізуємо CrashReportManager
             try {
-                CrashReportManager.initialize(clientDir);
+                CrashReportManager.initialize(clientDir, profile.getTitle());
                 LogHelper.info("CrashReportManager initialized");
             } catch (Exception e) {
                 LogHelper.error("Failed to initialize CrashReportManager", e);
