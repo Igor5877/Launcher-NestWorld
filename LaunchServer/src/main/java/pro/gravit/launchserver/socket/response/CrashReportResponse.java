@@ -96,12 +96,6 @@ public class CrashReportResponse extends SimpleResponse {
 
             logger.info("Crash report saved for user '{}': {}", username, filePath.toAbsolutePath());
 
-            // Створюємо тікет у Azuriom Support (якщо інтеграцію налаштовано)
-            crashComponent.submitTicketAsync(username, clientName,
-                gameVersion == null ? "unknown" : gameVersion,
-                forgeVersion == null ? "unknown" : forgeVersion,
-                content, filePath.toAbsolutePath().toString());
-
             sendResult(new CrashReportRequestEvent(true, "Crash report saved successfully",
                 filePath.toAbsolutePath().toString()));
 
