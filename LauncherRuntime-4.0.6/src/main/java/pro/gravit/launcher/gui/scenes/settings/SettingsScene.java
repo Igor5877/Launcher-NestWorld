@@ -59,7 +59,11 @@ public class SettingsScene extends BaseSettingsScene implements SceneSupportUser
                     .ifPresent(b -> b.getStyleClass().add("nav-item-active"));
         LookupHelper.<ButtonBase>lookupIfPossible(layout, "#navServers").ifPresent(b -> b.setOnAction((e) -> {
             try {
-                switchScene(application.gui.serverMenuScene);
+                // Settings is reachable straight from the login screen (gear icon) before
+                // any authentication happens. ServerMenuScene assumes a real session
+                // (profiles list, player info) - jumping there pre-auth left the user
+                // stuck in a scene that looks logged in but isn't, with no way back.
+                switchScene(application.authService.isAuth() ? application.gui.serverMenuScene : application.gui.loginScene);
             } catch (Exception exception) {
                 errorHandle(exception);
             }

@@ -83,6 +83,10 @@ public class AuthService {
         return SecurityHelper.encrypt(Launcher.getConfig().passwordEncryptKey, password);
     }
 
+    public boolean isAuth() {
+        return rawAuthResult != null;
+    }
+
     public void setAuthResult(String authId, AuthRequestEvent rawAuthResult) {
         this.rawAuthResult = rawAuthResult;
         if (rawAuthResult.oauth != null) {

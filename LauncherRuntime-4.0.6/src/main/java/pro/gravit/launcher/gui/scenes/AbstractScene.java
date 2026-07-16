@@ -84,21 +84,34 @@ public abstract class AbstractScene extends AbstractVisualComponent {
 }
 
     protected void userExit() {
+        // "Servers" nav item (shared #leftpanel) is reachable from Settings before any
+        // login ever happened (gear icon on the login screen). Sending ExitRequest without
+        // a real session makes the server reply "You are not authorized", and that reply
+        // used to be swallowed silently (empty onError), trapping the user: no way to log
+        // in (still stuck on a scene that assumes auth) nor out (exit request errors out
+        // unseen). Skip the pointless round-trip and just return to the login scene locally.
+        if (!application.authService.isAuth()) {
+            returnToLoginScene();
+            return;
+        }
+        // onException == null (3-arg overload): ProcessingOverlay already calls
+        // errorHandle(error.getCause()) on failure, so a real error still surfaces.
         processRequest(application.getTranslation("runtime.scenes.settings.exitDialog.processing"), new ExitRequest(),
-                       (event) -> {
-                           // Exit to main menu
-                           ContextHelper.runInFxThreadStatic(() -> {
-                               application.gui.loginScene.clearPassword();
-                               application.gui.loginScene.reset();
-                               try {
-                                   application.saveSettings();
-                                   application.authService.exit();
-                                   switchScene(application.gui.loginScene);
-                               } catch (Exception ex) {
-                                   errorHandle(ex);
-                               }
-                           });
-                       }, (event) -> {});
+                       (event) -> returnToLoginScene(), (event) -> {});
+    }
+
+    private void returnToLoginScene() {
+        ContextHelper.runInFxThreadStatic(() -> {
+            application.gui.loginScene.clearPassword();
+            application.gui.loginScene.reset();
+            try {
+                application.saveSettings();
+                application.authService.exit();
+                switchScene(application.gui.loginScene);
+            } catch (Exception ex) {
+                errorHandle(ex);
+            }
+        });
     }
 
     protected void switchToBackScene() throws Exception {
