@@ -27,16 +27,16 @@ namespace Prestarter
 
             if (Config.DownloadQuestionEnabled)
             {
-                switch (javaStatus)
-                {
-                    case SystemHelper.JavaStatus.NeedUpdate when CheckNeedJavaUpdate() == false:
-                    case SystemHelper.JavaStatus.NotInstalled when CheckNeedDownloadDialog() == false:
-                    case SystemHelper.JavaStatus.Ok:
-                        return;
-                    default:
-                        Console.WriteLine(javaStatus);
-                        break;
-                }
+                if (javaStatus == SystemHelper.JavaStatus.Ok)
+                    return;
+
+                if (javaStatus == SystemHelper.JavaStatus.NeedUpdate && !CheckNeedJavaUpdate())
+                    return;
+
+                if (javaStatus == SystemHelper.JavaStatus.NotInstalled && !CheckNeedDownloadDialog())
+                    return;
+
+                Console.WriteLine(javaStatus);
             }
 
             _reporter.ShowForm();

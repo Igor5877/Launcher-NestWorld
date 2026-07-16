@@ -146,12 +146,16 @@ namespace Prestarter
             logoLabel.Text = Config.Project;
             BackColor = ColorHelper.FromHex(Config.BackgroundColorHex);
             ForeColor = ColorHelper.FromHex(Config.ForegroundColorHex);
+            logoLabel.ForeColor = ColorHelper.FromHex(Config.TitleColorHex);
+
             mainProgressBar.ProgressBarColor = ColorHelper.FromHex(Config.PrimaryColorHex);
             mainProgressBar.BackColor = BackColor;
+            mainProgressBar.TrackColor = ColorHelper.Blend(BackColor, Color.White, 0.06f);
 
             // Настройка кнопки закрытия
-            exitButton.NormalColor = ColorHelper.FromHex(Config.ButtonColorHex);
+            exitButton.NormalColor = ColorHelper.FromHexWithAlpha(Config.ButtonColorHex);
             exitButton.HoverColor = ColorHelper.FromHex(Config.ButtonHoverColorHex);
+            exitButton.IconColor = Color.White;
             
             new Thread(() =>
             {

@@ -6,33 +6,93 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
 
 <AnchorPane prefHeight="560.0" prefWidth="930.0" styleClass="background" stylesheets="@serverinfo.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
     <!-- Навбар -->
-    <AnchorPane id="header" prefHeight="80.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-        <AnchorPane prefHeight="80.0" prefWidth="630.0" AnchorPane.leftAnchor="300.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+    <AnchorPane id="header" prefHeight="48.0" AnchorPane.leftAnchor="220.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <HBox alignment="CENTER_LEFT" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="14.0" AnchorPane.topAnchor="0.0">
             <children>
-                <Label id="serverName" maxWidth="400.0" prefHeight="32.0" styleClass="scene-header" text="ServerName" AnchorPane.leftAnchor="35.0" AnchorPane.topAnchor="34.0" />
-                <!-- Кнопки управления -->
-                <HBox id="controls" spacing="10.0" AnchorPane.rightAnchor="29.0" AnchorPane.topAnchor="34.0">
-                    <fx:include source="../../components/buttons/back.fxml" />
-                    <fx:include source="../../components/buttons/settings.fxml" />
-                    <fx:include source="../../components/buttons/minimize.fxml" />
-                    <fx:include source="../../components/buttons/exit.fxml" />
-                </HBox>
+                <fx:include source="../../components/buttons/back.fxml" />
+                <Label id="serverName" styleClass="scene-header" text="ServerName" />
             </children>
-        </AnchorPane>
+        </HBox>
+        <HBox id="controls" alignment="CENTER" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="0.0">
+            <children>
+                <HBox id="headerOnlineBadge" alignment="CENTER" managed="false" spacing="5.0" visible="false">
+                    <children>
+                        <Region styleClass="online-dot" />
+                        <Label id="headerOnlineCount" styleClass="online-count" text="?" />
+                        <Label styleClass="online-caption" text="%runtime.scenes.serverinfo.onlineLabel" />
+                    </children>
+                </HBox>
+                <fx:include source="../../components/buttons/settings.fxml" />
+                <fx:include source="../../components/buttons/minimize.fxml" />
+                <fx:include source="../../components/buttons/exit.fxml" />
+            </children>
+        </HBox>
     </AnchorPane>
     <fx:include source="../../components/panels/leftpanel.fxml" />
-    <AnchorPane prefHeight="480.0" prefWidth="630.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="300.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="80.0">
+
+    <!-- Прев'ю сервера -->
+    <AnchorPane id="previewPanel" prefWidth="180.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="220.0" AnchorPane.topAnchor="48.0">
         <children>
-            <Region id="serverLogo" layoutY="19.0" prefHeight="386.0" prefWidth="167.0" AnchorPane.bottomAnchor="75.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="463.0" AnchorPane.topAnchor="19.0" />
-            <ScrollPane id="serverDescriptionPane" fitToWidth="true" hbarPolicy="NEVER" layoutX="266.4" pannable="true" prefHeight="404.0" prefWidth="344.0" AnchorPane.bottomAnchor="76.0" AnchorPane.leftAnchor="266.0" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="0.0">
+            <Region id="serverLogo" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+            <Region id="previewShade" mouseTransparent="true" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+            <VBox id="previewStats" spacing="4.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="12.0" AnchorPane.rightAnchor="12.0">
+                <children>
+                    <HBox id="statPlayersRow" alignment="CENTER_LEFT" managed="false" visible="false">
+                        <children>
+                            <Label styleClass="stat-caption" text="%runtime.scenes.serverinfo.statPlayers" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            <Label id="statPlayersValue" styleClass="stat-value" text="?" />
+                        </children>
+                    </HBox>
+                    <HBox id="statPingRow" alignment="CENTER_LEFT" managed="false" visible="false">
+                        <children>
+                            <Label styleClass="stat-caption" text="%runtime.scenes.serverinfo.statPing" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            <Label id="statPingValue" styleClass="stat-value" text="?" />
+                        </children>
+                    </HBox>
+                    <HBox id="statTpsRow" alignment="CENTER_LEFT" managed="false" visible="false">
+                        <children>
+                            <Label styleClass="stat-caption" text="%runtime.scenes.serverinfo.statTps" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            <Label id="statTpsValue" styleClass="stat-value" text="?" />
+                        </children>
+                    </HBox>
+                </children>
+            </VBox>
+        </children>
+    </AnchorPane>
+
+    <!-- Основний контент -->
+    <AnchorPane AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="400.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="48.0">
+        <children>
+            <HBox id="infoTabsBar" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                <children>
+                    <Button id="tabDescBtn" styleClass="settings-tab, settings-tab-active" text="%runtime.scenes.serverinfo.tabDesc" />
+                    <Button id="tabModsBtn" styleClass="settings-tab" text="%runtime.scenes.servermenu.mods" />
+                    <Button id="tabSettingsBtn" styleClass="settings-tab" text="%runtime.scenes.settings.header" />
+                </children>
+            </HBox>
+            <ScrollPane id="serverDescriptionPane" fitToWidth="true" hbarPolicy="NEVER" pannable="true" AnchorPane.bottomAnchor="50.0" AnchorPane.leftAnchor="16.0" AnchorPane.rightAnchor="16.0" AnchorPane.topAnchor="40.0">
                 <content>
-                    <Label alignment="TOP_LEFT" maxWidth="1.7976931348623157E308" prefWidth="149.0" text="Server description" wrapText="true" />
+                    <Label alignment="TOP_LEFT" maxWidth="1.7976931348623157E308" text="Server description" wrapText="true" />
                 </content>
             </ScrollPane>
-              <fx:include source="../../components/panels/savepanel.fxml" AnchorPane.leftAnchor="308.0" AnchorPane.topAnchor="420.0" />
+            <ScrollPane id="tabMods" fitToWidth="true" hbarPolicy="NEVER" managed="false" pannable="true" visible="false" AnchorPane.bottomAnchor="50.0" AnchorPane.leftAnchor="16.0" AnchorPane.rightAnchor="16.0" AnchorPane.topAnchor="40.0">
+                <content>
+                    <VBox id="modsList" spacing="6.0" />
+                </content>
+            </ScrollPane>
+            <HBox id="infoFooter" alignment="CENTER_RIGHT" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                <children>
+                    <Button id="footerBack" styleClass="mods-button" text="%runtime.scenes.settings.backButton" />
+                    <fx:include source="../../components/panels/savepanel.fxml" />
+                </children>
+            </HBox>
         </children>
     </AnchorPane>
 </AnchorPane>

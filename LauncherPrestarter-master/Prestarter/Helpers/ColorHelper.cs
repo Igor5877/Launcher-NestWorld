@@ -141,5 +141,24 @@ namespace Prestarter.Helpers
                 (int)(color.G + (255 - color.G) * factor),
                 (int)(color.B + (255 - color.B) * factor));
         }
+
+        /// <summary>
+        /// Накладывает полупрозрачный цвет (overlay) поверх непрозрачного фона и возвращает результирующий непрозрачный цвет.
+        /// Используется там, где нужен эффект rgba(...) поверх известного фона на непрозрачных контролах.
+        /// </summary>
+        /// <param name="background">Непрозрачный цвет фона</param>
+        /// <param name="overlay">Накладываемый цвет (альфа-канал игнорируется)</param>
+        /// <param name="overlayOpacity">Непрозрачность накладываемого цвета, 0..1</param>
+        /// <returns>Результирующий непрозрачный цвет</returns>
+        public static Color Blend(Color background, Color overlay, float overlayOpacity)
+        {
+            if (overlayOpacity < 0f || overlayOpacity > 1f)
+                throw new ArgumentOutOfRangeException(nameof(overlayOpacity), "Непрозрачность должна быть в диапазоне 0..1");
+
+            return Color.FromArgb(
+                (int)(overlay.R * overlayOpacity + background.R * (1 - overlayOpacity)),
+                (int)(overlay.G * overlayOpacity + background.G * (1 - overlayOpacity)),
+                (int)(overlay.B * overlayOpacity + background.B * (1 - overlayOpacity)));
+        }
     }
 }

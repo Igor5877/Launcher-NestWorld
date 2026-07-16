@@ -44,24 +44,28 @@ namespace Prestarter
         public static string DialogName => $"{Project}";
         
         /// <summary>
-        /// Основной цвет
+        /// Основной цвет (акцент, заполнение прогресс-бара)
         /// </summary>
-        public static readonly string PrimaryColorHex = "#720606";
+        public static readonly string PrimaryColorHex = "#9F0200";
         /// <summary>
-        /// Цвето фона
+        /// Цвет фона окна
         /// </summary>
-        public static readonly string BackgroundColorHex = "#00417e";
+        public static readonly string BackgroundColorHex = "#111114";
         /// <summary>
-        /// Цвет текста
+        /// Цвет второстепенного текста (статус загрузки)
         /// </summary>
-        public static readonly string ForegroundColorHex = "#969696";
+        public static readonly string ForegroundColorHex = "#8888A0";
         /// <summary>
-        /// Цвет Кнопки
+        /// Цвет заголовка (название проекта)
         /// </summary>
-        public static readonly string ButtonColorHex = "#2afa00";
+        public static readonly string TitleColorHex = "#E4E4F0";
         /// <summary>
-        /// Цвет Кнопки при наведении
+        /// Цвет рамки кнопки закрытия в обычном состоянии (rgba(255,255,255,0.22))
         /// </summary>
-        public static readonly string ButtonHoverColorHex = "#2E2E2E";
+        public static readonly string ButtonColorHex = "#38FFFFFF";
+        /// <summary>
+        /// Цвет кнопки закрытия при наведении
+        /// </summary>
+        public static readonly string ButtonHoverColorHex = "#9F0200";
     }
 }

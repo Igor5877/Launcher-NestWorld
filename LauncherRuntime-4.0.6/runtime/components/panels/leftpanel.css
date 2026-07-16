@@ -1,3 +1,63 @@
+@import "../../styles/global.css";
+@import "../../styles/variables.css";
+
 #leftpanel {
+    -fx-background-color: rgba(13, 13, 16, 0.9);
+    -fx-border-color: transparent -fx-border transparent transparent;
+    -fx-border-width: 0 1px 0 0;
+}
+#brandBlock {
+    -fx-padding: 18px 16px 14px 16px;
+}
+#brandLogoBadge {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, -fx-violet, #7A0100);
+    -fx-background-radius: 7px;
+}
+#brandName {
+    -fx-font-size: 12px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text;
+}
+#brandTag {
+    -fx-font-size: 8px;
+    -fx-text-fill: -fx-colors-text-secondary;
+}
+.hdivider {
+    -fx-background-color: -fx-border;
+}
+#nav {
+    -fx-padding: 10px 8px;
+}
+.nav-item {
+    -fx-pref-width: 204.0;
+    -fx-alignment: CENTER_LEFT;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 1px;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+    -fx-padding: 8px 11px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-font-size: 10px;
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-cursor: hand;
+}
+.nav-item:hover {
     -fx-background-color: -fx-glass;
+}
+.nav-item-active {
+    -fx-background-color: rgba(159, 2, 0, 0.12);
+    -fx-border-color: rgba(159, 2, 0, 0.4);
+    -fx-text-fill: -fx-violet;
+}
+.nav-item-active:hover {
+    -fx-background-color: rgba(159, 2, 0, 0.12);
+}
+#footerUserBlock {
+    -fx-padding: 9px 11px;
+    -fx-background-color: -fx-glass;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
 }

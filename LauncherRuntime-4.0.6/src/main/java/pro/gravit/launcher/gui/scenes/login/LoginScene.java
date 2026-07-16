@@ -49,9 +49,10 @@ public class LoginScene extends AbstractScene {
 
     @Override
     public void doInit() {
-        LookupHelper.<ButtonBase>lookup(header, "#controls", "#settings").setOnAction((e) -> {
+        LookupHelper.<ButtonBase>lookup(layout, "#settings").setOnAction((e) -> {
             try {
-                switchScene(application.gui.globalSettingsScene);
+                switchScene(application.gui.settingsScene);
+                application.gui.settingsScene.reset();
             } catch (Exception exception) {
                 errorHandle(exception);
             }

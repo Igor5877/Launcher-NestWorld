@@ -22,9 +22,9 @@ public class PingService {
         });
     }
 
-    public void addReport(String name, ServerPinger.Result result) {
+    public void addReport(String name, ServerPinger.Result result, long pingMs) {
         CompletableFuture<PingServerReport> report = getPingReport(name);
-        PingServerReport value = new PingServerReport(name, result.maxPlayers, result.onlinePlayers);
+        PingServerReport value = new PingServerReport(name, result.maxPlayers, result.onlinePlayers, pingMs, null);
         report.complete(value);
     }
 
@@ -41,11 +41,18 @@ public class PingService {
         public final String name;
         public final int maxPlayers;
         public final int playersOnline;
+        /** Час відгуку ping-запиту, мс. -1, якщо невідомо. */
+        public final long pingMs;
+        /** TPS сервера. Наразі протокол пінгу цього не повертає, тому завжди null,
+         *  поле лишене на майбутнє (якщо сервер колись почне віддавати цю метрику). */
+        public final Double tps;
 
-        public PingServerReport(String name, int maxPlayers, int playersOnline) {
+        public PingServerReport(String name, int maxPlayers, int playersOnline, long pingMs, Double tps) {
             this.name = name;
             this.maxPlayers = maxPlayers;
             this.playersOnline = playersOnline;
+            this.pingMs = pingMs;
+            this.tps = tps;
         }
     }
 }

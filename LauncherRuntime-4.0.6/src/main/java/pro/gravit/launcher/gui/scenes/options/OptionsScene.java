@@ -23,6 +23,22 @@ public class OptionsScene extends AbstractScene implements SceneSupportUserBlock
     protected void doInit() {
         this.userBlock = new UserBlock(layout, new SceneAccessor());
         optionsTab = new OptionsTab(application, LookupHelper.lookup(layout, "#tabPane"));
+
+        LookupHelper.<ButtonBase>lookupIfPossible(layout, "#navServers").ifPresent(b -> b.setOnAction((e) -> {
+            try {
+                switchScene(application.gui.serverMenuScene);
+            } catch (Exception exception) {
+                errorHandle(exception);
+            }
+        }));
+        LookupHelper.<ButtonBase>lookupIfPossible(layout, "#navSettings").ifPresent(b -> b.setOnAction((e) -> {
+            try {
+                switchScene(application.gui.settingsScene);
+                application.gui.settingsScene.reset();
+            } catch (Exception exception) {
+                errorHandle(exception);
+            }
+        }));
     }
 
     @Override

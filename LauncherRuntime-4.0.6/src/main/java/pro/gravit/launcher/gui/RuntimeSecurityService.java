@@ -1,6 +1,7 @@
 package pro.gravit.launcher.gui;
 
 import pro.gravit.launcher.gui.JavaFXApplication;
+import pro.gravit.launcher.gui.impl.NotificationKind;
 import pro.gravit.launcher.runtime.utils.HWIDProvider;
 import pro.gravit.launcher.base.request.secure.GetSecureLevelInfoRequest;
 import pro.gravit.launcher.base.request.secure.HardwareReportRequest;
@@ -35,7 +36,7 @@ public class RuntimeSecurityService {
                                            doCollectHardwareInfo(!event1.onlyStatisticInfo);
                                        }
                                    }).exceptionally((e) -> {
-                               application.messageManager.createNotification("Hardware Checker", e.getCause().getMessage());
+                               application.messageManager.createNotification(NotificationKind.ERROR, "Hardware Checker", e.getCause().getMessage());
                                notifyWaitObject(false);
                                return null;
                            });
@@ -56,12 +57,12 @@ public class RuntimeSecurityService {
                 LogHelper.info("Advanced security level success completed");
                 notifyWaitObject(true);
             }).exceptionally((e) -> {
-                application.messageManager.createNotification("Hardware Checker", e.getCause().getMessage());
+                application.messageManager.createNotification(NotificationKind.ERROR, "Hardware Checker", e.getCause().getMessage());
                 notifyWaitObject(false);
                 return null;
             });
         } catch (IOException e) {
-            application.messageManager.createNotification("Hardware Checker", e.getCause().getMessage());
+            application.messageManager.createNotification(NotificationKind.ERROR, "Hardware Checker", e.getCause().getMessage());
             notifyWaitObject(false);
         }
     }
@@ -77,7 +78,7 @@ public class RuntimeSecurityService {
                     LogHelper.info("Advanced security level success completed");
                     notifyWaitObject(true);
                 }).exceptionally((exc) -> {
-                    application.messageManager.createNotification("Hardware Checker", exc.getCause().getMessage());
+                    application.messageManager.createNotification(NotificationKind.ERROR, "Hardware Checker", exc.getCause().getMessage());
                     return null;
                 });
             } catch (Throwable e) {

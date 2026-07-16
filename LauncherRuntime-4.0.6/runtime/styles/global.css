@@ -52,7 +52,7 @@ ComboBox .arrow-button {
     -fx-background-color: transparent;
 }
 .scene-header {
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
     -fx-font-size: 20px;
     -fx-text-fill: -fx-colors-text;
 }
@@ -100,7 +100,7 @@ ComboBox .arrow-button {
     -fx-font-size: 10px;
     -fx-fill: -fx-header;
     -fx-align-items: center;
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
 }
 .header-button:hover,
 .icon-button:hover {
@@ -184,7 +184,7 @@ ComboBox .arrow-button {
 #headerDescription {
     -fx-text-fill: -fx-colors-text;
     -fx-font-size: 16px;
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
 }
 /*-- Блок вывода --*/
 #output-detail {
@@ -204,7 +204,7 @@ ComboBox .arrow-button {
 }
 /*-- Кнопка отправить --*/
 .send-button-text {
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
     -fx-font-size: 12px;
     -fx-text-align: center;
     -fx-fill: -fx-header;
@@ -239,7 +239,7 @@ ComboBox .arrow-button {
 }
 .menu-item:focused .label {
     -fx-text-fill: -fx-colors-text-hover;
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
 }
 /* check-box элементы */
 CheckBox {
@@ -327,7 +327,7 @@ ComboBox .list-cell {
 .combo-box-popup .list-view .list-cell:filled:selected:hover {
     -fx-background-color: -fx-glass;
     -fx-text-fill: -fx-colors-text-hover;
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
 }
 .combo-box-popup .list-view .list-cell:filled:hover {
     -fx-background-color: -fx-glass;

@@ -1,11 +1,13 @@
 package pro.gravit.launcher.gui.dialogs;
 
 import javafx.geometry.Rectangle2D;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import pro.gravit.launcher.gui.JavaFXApplication;
 import pro.gravit.launcher.gui.helper.LookupHelper;
 import pro.gravit.launcher.gui.helper.PositionHelper;
+import pro.gravit.launcher.gui.impl.NotificationKind;
 import pro.gravit.utils.helper.LogHelper;
 
 import java.util.*;
@@ -45,6 +47,7 @@ public class NotificationDialog extends AbstractDialog {
     private static final Map<PositionHelper.PositionInfo, NotificationSlotsInfo> slots = new HashMap<>();
     private String header;
     private String text;
+    private final NotificationKind kind;
 
     private Label textHeader;
     private Label textDescription;
@@ -53,9 +56,14 @@ public class NotificationDialog extends AbstractDialog {
     private double positionOffset;
 
     public NotificationDialog(JavaFXApplication application, String header, String text) {
+        this(application, header, text, NotificationKind.INFO);
+    }
+
+    public NotificationDialog(JavaFXApplication application, String header, String text, NotificationKind kind) {
         super("components/notification.fxml", application);
         this.header = header;
         this.text = text;
+        this.kind = kind;
     }
 
     @Override
@@ -67,6 +75,8 @@ public class NotificationDialog extends AbstractDialog {
     protected void doInit() {
         textHeader = LookupHelper.lookup(layout, "#notificationHeading");
         textDescription = LookupHelper.lookup(layout, "#notificationText");
+        LookupHelper.<Label>lookupIfPossible(layout, "#notificationIcon").ifPresent((e) -> e.setText(kind.icon));
+        layout.getStyleClass().add(kind.styleClass);
         layout.setOnMouseClicked((e) -> {
             try {
                 close();
@@ -74,6 +84,13 @@ public class NotificationDialog extends AbstractDialog {
                 errorHandle(throwable);
             }
         });
+        LookupHelper.<Button>lookupIfPossible(layout, "#notificationClose").ifPresent((e) -> e.setOnAction((event) -> {
+            try {
+                close();
+            } catch (Throwable throwable) {
+                errorHandle(throwable);
+            }
+        }));
         textHeader.setText(header);
         textDescription.setText(text);
         setOnClose(() -> {

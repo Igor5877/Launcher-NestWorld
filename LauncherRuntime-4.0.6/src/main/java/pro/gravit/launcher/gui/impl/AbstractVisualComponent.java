@@ -145,7 +145,7 @@ public abstract class AbstractVisualComponent {
             message = application.getTranslation("runtime.request.".concat(message), message);
         }
         LogHelper.error(e);
-        application.messageManager.createNotification("Error", message);
+        application.messageManager.createNotification(NotificationKind.ERROR, "Error", message);
     }
 
     protected Parent getFxmlRootPrivate() {

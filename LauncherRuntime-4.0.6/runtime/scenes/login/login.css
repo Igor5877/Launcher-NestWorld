@@ -1,18 +1,69 @@
 /*-- Вертикальная полоса на главной сцене --*/
-.vline {
+/* .vline {
     -fx-background-color: -fx-glass;
-}
+} */
 #loginLeftPane{
     -fx-padding: 32px;
+}
+#header {
+    -fx-background-color: rgba(13, 13, 16, 0.8);
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-border-style: solid;
+}
+#headerLogoBadge {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, -fx-violet, #7A0100);
+    -fx-background-radius: 6px;
+}
+#headerTitle {
+    -fx-font-size: 12px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text;
+}
+#headerTag {
+    -fx-font-size: 8px;
+    -fx-text-fill: -fx-colors-unactive;
+}
+#controls .icon-button {
+    -fx-background-color: -fx-glass;
+    -fx-background-radius: 5px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-min-width: 22px;
+    -fx-min-height: 22px;
+    -fx-max-width: 22px;
+    -fx-max-height: 22px;
+    -fx-padding: 3px;
+}
+#controls .icon-button .icon-button-color {
+    -fx-scale-x: 0.6;
+    -fx-scale-y: 0.6;
+}
+#controls .icon-button:hover {
+    -fx-opacity: 1;
+    -fx-border-color: -fx-border-hover;
+}
+#controls #exit {
+    -fx-background-color: rgba(159, 2, 0, 0.08);
+    -fx-border-color: rgba(159, 2, 0, 0.2);
+}
+#controls #exit .icon-button-color {
+    -fx-fill: -fx-violet;
+}
+#controls #exit:hover {
+    -fx-background-color: rgba(159, 2, 0, 0.16);
+}
+.vdivider {
+    -fx-background-color: -fx-border;
 }
 /*-- Ввод данных --*/
 #login,
 PasswordField {
     -fx-background-color: -fx-glass;
-    -fx-background-radius: 10px;
-    -fx-font-size: 12px;
+    -fx-background-radius: 6px;
+    -fx-font-size: 11px;
     -fx-text-fill: -fx-header;
-    -fx-font-weight: bold;
     -fx-cursor: text;
 }
 PasswordField:focused,
@@ -35,7 +86,7 @@ PasswordField:focused,
 /*-- Чекбоксы --*/
 #savePassword,
 #autoenter {
-    -fx-font-size: 12px;
+    -fx-font-size: 11px;
     -fx-background-image: url('../../images/icons/checkbox_off.png');
     -fx-text-fill: -fx-colors-text;
 }
@@ -46,35 +97,88 @@ PasswordField:focused,
 /*-- Метод авторизации --*/
 #authList {
     -fx-background-color: -fx-glass;
-    -fx-background-radius: 10px;
+    -fx-background-radius: 6px;
 }
 /*-- Поля --*/
 #login {
       -fx-background-image:url('../../images/icons/user.png');
       -fx-background-repeat: no-repeat;
       -fx-background-position: left center;
-      -fx-padding: 0 0 0 24px;
+      -fx-padding: 0 0 0 34px;
+      -fx-border-color: rgba(0, 255, 255, 0.08);
+      -fx-border-width: 1px;
+      -fx-border-radius: 6px;
+      -fx-effect: none;
+}
+#login:focused {
+      -fx-background-image:url('../../images/icons/user-focused.png');
+      -fx-border-color: -fx-violet;
+      -fx-effect: dropshadow(gaussian, -fx-violet-hover2, 12, 0.35, 0, 0);
 }
 PasswordField, #totp {
       -fx-background-image:url('../../images/icons/lock.png');
       -fx-background-repeat: no-repeat;
       -fx-background-position: left center;
-      -fx-padding: 0 0 0 24px;
+      -fx-padding: 0 0 0 34px;
+      -fx-border-color: -fx-border;
+      -fx-border-width: 1px;
+      -fx-border-radius: 6px;
+}
+PasswordField:focused, #totp:focused {
+      -fx-border-color: -fx-violet;
+      -fx-effect: dropshadow(gaussian, -fx-violet-hover2, 12, 0.35, 0, 0);
+}
+
+#logoBadge {
+    -fx-background-color: rgba(159, 2, 0, 0.12);
+    -fx-background-radius: 18px;
+    -fx-border-color: rgba(159, 2, 0, 0.4);
+    -fx-border-width: 1px;
+    -fx-border-radius: 18px;
+    -fx-effect: dropshadow(gaussian, rgba(159, 2, 0, 0.15), 36, 0, 0, 0);
+}
+#brandTitle {
+    -fx-font-size: 20px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text;
+}
+#brandSubtitle {
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-unactive;
+}
+#brandDesc {
+    -fx-font-size: 10px;
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-line-spacing: 5px;
+}
+#authOptionsCard {
+    -fx-background-color: -fx-glass;
+    -fx-background-radius: 8px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+}
+#authList {
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-font-size: 10px;
+    -fx-text-fill: -fx-colors-text-secondary;
 }
 /*-- Ссылки --*/
 #createAccount {
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
     -fx-font-size: 9px;
     -fx-text-align: left;
-    -fx-fill: -fx-green;
+    -fx-fill: -fx-violet;
 }
 #createAccount:hover,
 #createAccount:pressed {
-    -fx-fill: -fx-green-hover;
+    -fx-fill: -fx-red-hover;
     -fx-cursor: hand;
 }
 #forgotPass {
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
     -fx-font-size: 9px;
     -fx-text-align: right;
     -fx-fill: -fx-colors-text-secondary;
@@ -95,24 +199,62 @@ Rectangle {
 }
 /*-- Веб авторизация (НЕ найдено в FXML) --*/
 /* #webAuth {
-    -fx-font-weight: bold;
+    -fx-font-family: 'Comfortaa Bold';
     -fx-font-size: 12px;
     -fx-text-align: center;
     -fx-text-fill: -fx-colors-base;
     -fx-background-color: -fx-green;
 } */
 /*-- Кнопка входа --*/
-#authButton {
-    -fx-font-weight: bold;
-    -fx-font-size: 24px;
+#authTitle {
+    -fx-font-size: 20px;
+    -fx-font-family: 'Comfortaa Bold';
     -fx-text-fill: -fx-colors-text;
+}
+#authSubtitle {
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-unactive;
+}
+.linkButton {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-font-size: 10px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-cursor: hand;
+    -fx-padding: 4px 0;
+}
+.linkButton:hover {
+    -fx-text-fill: -fx-colors-text-hover;
+}
+#settingsLinkLabel {
+    -fx-font-size: 10px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text-secondary;
+}
+#settings {
+    -fx-min-width: 16px;
+    -fx-min-height: 16px;
+    -fx-max-width: 16px;
+    -fx-max-height: 16px;
+    -fx-padding: 0;
+}
+#settings .icon-button-color {
+    -fx-fill: -fx-colors-text-secondary;
+    -fx-scale-x: 0.55;
+    -fx-scale-y: 0.55;
+}
+#authButton {
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-font-size: 13px;
+    -fx-text-fill: -fx-colors-text;
+    -fx-background-radius: 7px;
 }
 /* --START-- Enum AuthButtonState Button */
 .activeButton {
-    -fx-background-color: -fx-green;
+    -fx-background-color: -fx-red;
 }
 .activeButton:hover {
-    -fx-background-color: -fx-green-hover;
+    -fx-background-color: -fx-red-hover;
 }
 .unactiveButton {
     -fx-background-color: -fx-colors-unactive;
@@ -126,4 +268,15 @@ Rectangle {
 .errorButton:hover {
     -fx-background-color: -fx-red-hover;
 }
+.orb-red {
+      -fx-background-radius: 250px;
+      -fx-background-color: radial-gradient(center 50% 50%, radius 50%, -fx-violet 0%, transparent 70%);
+      -fx-opacity: 0.06;
+  }
+.orb-red-faint {
+      -fx-background-radius: 175px;
+      -fx-background-color: radial-gradient(center 50% 50%, radius 50%, -fx-violet 0%, transparent 70%);
+      -fx-opacity: 0.04;
+  }
+
 /* --END-- */

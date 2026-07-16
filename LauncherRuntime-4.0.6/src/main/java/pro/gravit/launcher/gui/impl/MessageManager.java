@@ -17,7 +17,11 @@ public class MessageManager {
     }
 
     public void createNotification(String head, String message) {
-        createNotification(head, message, application.getCurrentScene() != null);
+        createNotification(NotificationKind.INFO, head, message);
+    }
+
+    public void createNotification(NotificationKind kind, String head, String message) {
+        createNotification(kind, head, message, application.getCurrentScene() != null);
     }
 
     public void initDialogInScene(AbstractScene scene, AbstractDialog dialog) {
@@ -39,7 +43,11 @@ public class MessageManager {
     }
 
     public void createNotification(String head, String message, boolean isLauncher) {
-        NotificationDialog dialog = new NotificationDialog(application, head, message);
+        createNotification(NotificationKind.INFO, head, message, isLauncher);
+    }
+
+    public void createNotification(NotificationKind kind, String head, String message, boolean isLauncher) {
+        NotificationDialog dialog = new NotificationDialog(application, head, message, kind);
         if (isLauncher) {
             AbstractStage stage = application.getMainStage();
             if (stage == null)

@@ -6,6 +6,7 @@ import javafx.stage.FileChooser;
 import pro.gravit.launcher.base.Launcher;
 import pro.gravit.launcher.gui.JavaFXApplication;
 import pro.gravit.launcher.gui.helper.LookupHelper;
+import pro.gravit.launcher.gui.impl.NotificationKind;
 import pro.gravit.launcher.core.LauncherNetworkAPI;
 import pro.gravit.launcher.base.events.request.AssetUploadInfoRequestEvent;
 import pro.gravit.launcher.base.profiles.Texture;
@@ -127,7 +128,7 @@ public class UploadAssetOverlay extends CenterOverlay {
                                                                 }
                                                             }
                                                         }
-                                                        contextHelper.runInFxThread(() -> application.messageManager.createNotification(application.getTranslation("runtime.overlay.uploadasset.success.header"), application.getTranslation("runtime.overlay.uploadasset.success.description")));
+                                                        contextHelper.runInFxThread(() -> application.messageManager.createNotification(NotificationKind.SUCCESS, application.getTranslation("runtime.overlay.uploadasset.success.header"), application.getTranslation("runtime.overlay.uploadasset.success.description")));
                                                     } catch (IOException | URISyntaxException ex) {
                                                         errorHandle(ex);
                                                     }

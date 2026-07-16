@@ -10,23 +10,23 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<HBox spacing="15.0" stylesheets="@userBlock.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+<HBox spacing="9.0" stylesheets="@userBlock.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
     <children>
-        <StackPane prefHeight="32.0" prefWidth="32.0">
+        <StackPane maxHeight="30.0" maxWidth="30.0" minHeight="30.0" minWidth="30.0" prefHeight="30.0" prefWidth="30.0">
             <children>
                 <!-- Аватар игрока -->
-                <ImageView id="avatar" fitHeight="32.0" fitWidth="32.0" smooth="false">
+                <ImageView id="avatar" fitHeight="30.0" fitWidth="30.0" smooth="false">
                     <Image url="@../images/icons/default.png" />
                 </ImageView>
                 <fx:include source="buttons/customization.fxml" />
             </children>
         </StackPane>
-        <VBox>
+        <VBox HBox.hgrow="ALWAYS">
             <children>
                 <!-- Никнейм игрока -->
-                <Label id="nickname" text="PLAYER123" />
-                <!-- Счет игрока -->
-                <Label id="role">
+                <Label id="nickname" maxWidth="110.0" text="PLAYER123" />
+                <!-- Роль игрока -->
+                <Label id="role" maxWidth="110.0">
                     <!-- <tooltip><Tooltip anchorLocation="WINDOW_BOTTOM_LEFT" text="%runtime.scenes.servermenu.moneyTooltip" /></tooltip> -->
                 </Label>
             </children>

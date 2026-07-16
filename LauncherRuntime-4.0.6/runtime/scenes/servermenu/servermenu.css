@@ -1,0 +1,24 @@
+#header {
+    -fx-background-color: rgba(17, 17, 20, 0.85);
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+#header .scene-header {
+    -fx-font-size: 13px;
+}
+#statsBar {
+    -fx-background-color: -fx-glass;
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 0 20px;
+}
+#statsOnline,
+#statsServers {
+    -fx-font-size: 10px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text;
+}
+#statsHint {
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-text-secondary;
+}

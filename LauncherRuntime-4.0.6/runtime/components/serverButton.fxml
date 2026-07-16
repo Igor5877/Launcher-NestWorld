@@ -9,39 +9,39 @@
 
 <!-- DrLeonardo refactor -->
 
-<Pane fx:id="serverButton" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" 
-   minWidth="-Infinity" prefHeight="203.0" prefWidth="560.0" styleClass="b-20"
+<Pane fx:id="serverButton" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity"
+   minWidth="-Infinity" prefHeight="130.0" prefWidth="650.0" styleClass="b-20"
    stylesheets="@components.css" xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1">
-   <Pane id="serverButtonLayout" layoutX="3.0" prefHeight="203.0" prefWidth="560.0"
+   <Pane id="serverButtonLayout" layoutX="3.0" prefHeight="130.0" prefWidth="650.0"
       styleClass="serverButtons">
       <children>
 
          <!-- Лого сервера (Исправлено на Region) -->
-         <Region id="serverLogo" layoutX="-3.0" prefHeight="203.0" prefWidth="560.0" />
+         <Region id="serverLogo" layoutX="-3.0" prefHeight="130.0" prefWidth="650.0" />
 
          <!-- Онлайн сервера -->
-         <Pane id="block-online" layoutX="479.0" layoutY="17.0" prefHeight="35.0" prefWidth="48.0">
+         <Pane id="block-online" layoutX="580.0" layoutY="12.0" prefHeight="24.0" prefWidth="56.0">
             <children>
-               <Label id="online" alignment="CENTER" layoutY="-1.0" prefHeight="35.0"
-                  prefWidth="48.0" text="?" />
+               <Label id="online" alignment="CENTER" prefHeight="24.0"
+                  prefWidth="56.0" text="?" />
             </children>
          </Pane>
 
          <!-- Индикатор скорости загрузки -->
-         <Label id="speedLoad" alignment="CENTER" layoutX="394.0" layoutY="17.0" prefHeight="35.0" prefWidth="75.0" styleClass="online-violet" text="0 m/s" visible="false" />
+         <Label id="speedLoad" alignment="CENTER" layoutX="546.0" layoutY="90.0" prefHeight="24.0" prefWidth="90.0" styleClass="online-violet" text="0 m/s" visible="false" />
 
          <!-- Информация сервера -->
-         <Label id="nameServer" alignment="CENTER" layoutX="12.0" layoutY="26.0" prefHeight="29.0"
-            prefWidth="189.0" text="SERVERNAME" textAlignment="CENTER" />
-         <Label id="genreServer" alignment="CENTER" layoutX="12.0" layoutY="75.0" prefHeight="17.0"
-            prefWidth="189.0" text="HITECH" textAlignment="CENTER" />
+         <Label id="nameServer" alignment="CENTER_LEFT" layoutX="16.0" layoutY="10.0" prefHeight="22.0"
+            prefWidth="360.0" text="SERVERNAME" textAlignment="LEFT" />
+         <Label id="genreServer" alignment="CENTER_LEFT" layoutX="16.0" layoutY="34.0" prefHeight="16.0"
+            prefWidth="360.0" text="HITECH" textAlignment="LEFT" />
 
          <!-- Кнопка сохранить (для других сцен) -->
-         <Button id="save" layoutX="31.0" layoutY="128.0" mnemonicParsing="false" prefHeight="55.0"
-            prefWidth="151.0" text="%runtime.components.serverButton.save"/>
+         <Button id="save" layoutX="16.0" layoutY="82.0" mnemonicParsing="false" prefHeight="36.0"
+            prefWidth="140.0" text="%runtime.components.serverButton.save"/>
 
-         <Button id="reset" layoutX="289.0" layoutY="9.0" mnemonicParsing="false" prefHeight="35.0"
-            prefWidth="81.0" text="%runtime.components.serverButton.reset" visible="false">
+         <Button id="reset" layoutX="546.0" layoutY="10.0" mnemonicParsing="false" prefHeight="26.0"
+            prefWidth="80.0" text="%runtime.components.serverButton.reset" visible="false">
             <tooltip>
                <Tooltip id="resetTooltip" text="%runtime.components.serverButton.resetTooltip" />
             </tooltip>

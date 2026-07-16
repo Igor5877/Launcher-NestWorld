@@ -2,6 +2,7 @@ package pro.gravit.launcher.gui.service;
 
 import pro.gravit.launcher.client.api.DialogService;
 import pro.gravit.launcher.gui.impl.MessageManager;
+import pro.gravit.launcher.gui.impl.NotificationKind;
 import pro.gravit.launcher.base.events.NotificationEvent;
 
 import java.util.function.Consumer;
@@ -36,6 +37,15 @@ public class RuntimeDialogService implements DialogService.DialogServiceNotifica
 
     @Override
     public void createNotification(NotificationEvent.NotificationType type, String head, String message) {
-        messageManager.createNotification(head, message);
+        messageManager.createNotification(toKind(type), head, message);
+    }
+
+    private static NotificationKind toKind(NotificationEvent.NotificationType type) {
+        if (type == null) return NotificationKind.INFO;
+        return switch (type) {
+            case ERROR -> NotificationKind.ERROR;
+            case WARN -> NotificationKind.WARNING;
+            case INFO, OTHER -> NotificationKind.INFO;
+        };
     }
 }

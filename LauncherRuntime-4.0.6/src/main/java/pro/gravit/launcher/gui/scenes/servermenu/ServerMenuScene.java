@@ -3,6 +3,7 @@ package pro.gravit.launcher.gui.scenes.servermenu;
 import javafx.event.EventHandler;
 import javafx.scene.control.ButtonBase;
 
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -18,7 +19,9 @@ import pro.gravit.launcher.base.profiles.ClientProfile;
 import pro.gravit.utils.helper.CommonHelper;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ServerMenuScene extends AbstractScene implements SceneSupportUserBlock {
     private List<ClientProfile> lastProfiles;
@@ -31,9 +34,11 @@ public class ServerMenuScene extends AbstractScene implements SceneSupportUserBl
     @Override
     public void doInit() {
         this.userBlock = new UserBlock(layout, new SceneAccessor());
-        LookupHelper.<ButtonBase>lookup(header, "#controls", "#settings").setOnAction((e) -> {
+        LookupHelper.<ButtonBase>lookup(layout, "#navServers").getStyleClass().add("nav-item-active");
+        LookupHelper.<ButtonBase>lookup(layout, "#navSettings").setOnAction((e) -> {
             try {
-                switchScene(application.gui.globalSettingsScene);
+                switchScene(application.gui.settingsScene);
+                application.gui.settingsScene.reset();
             } catch (Exception exception) {
                 errorHandle(exception);
             }
@@ -70,6 +75,23 @@ public class ServerMenuScene extends AbstractScene implements SceneSupportUserBl
         serverList.setSpacing(20);
         serverList.getChildren().clear();
         application.pingService.clear();
+
+        LookupHelper.<Label>lookup(layout, "#statsServers").setText(
+                MessageFormat.format(application.getTranslation("runtime.scenes.servermenu.statsServers"), profiles.size()));
+        Label statsOnlineLabel = LookupHelper.lookup(layout, "#statsOnline");
+        statsOnlineLabel.setText(MessageFormat.format(application.getTranslation("runtime.scenes.servermenu.statsOnline"), 0));
+        AtomicLong totalOnline = new AtomicLong(0);
+        for (ClientProfile profile : lastProfiles) {
+            for (ClientProfile.ServerProfile serverProfile : profile.getServers()) {
+                application.pingService.getPingReport(serverProfile.name).thenAccept((report) -> {
+                    if (report == null) return;
+                    long total = totalOnline.addAndGet(report.playersOnline);
+                    contextHelper.runInFxThread(() -> statsOnlineLabel.setText(
+                            MessageFormat.format(application.getTranslation("runtime.scenes.servermenu.statsOnline"), total)));
+                });
+            }
+        }
+
         serverButtonCacheMap.forEach((profile, serverButtonCache) -> {
             EventHandler<? super MouseEvent> handle = (event) -> {
                 if (!event.getButton().equals(MouseButton.PRIMARY)) return;
@@ -90,9 +112,11 @@ public class ServerMenuScene extends AbstractScene implements SceneSupportUserBl
                     if (!serverProfile.socketPing || serverProfile.serverAddress == null) continue;
                     try {
                         ServerPinger pinger = new ServerPinger(serverProfile, profile.getVersion());
+                        long pingStart = System.currentTimeMillis();
                         ServerPinger.Result result = pinger.ping();
+                        long pingMs = System.currentTimeMillis() - pingStart;
                         contextHelper.runInFxThread(
-                                () -> application.pingService.addReport(serverProfile.name, result));
+                                () -> application.pingService.addReport(serverProfile.name, result, pingMs));
                     } catch (IOException ignored) {
                     }
                 }

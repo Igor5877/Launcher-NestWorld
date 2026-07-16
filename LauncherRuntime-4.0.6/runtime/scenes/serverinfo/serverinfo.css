@@ -1,11 +1,142 @@
-ScrollPane {
-    -fx-padding: 15px;
-    -fx-background-color: -fx-colors-baseGA;
-    -fx-background-radius: 15px;
+#header {
+    -fx-background-color: rgba(17, 17, 20, 0.85);
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1px 0;
 }
-ScrollPane Label {
-    -fx-font-style: normal;
-    -fx-font-weight: normal;
-    -fx-font-size: 14px;
+#header .scene-header {
+    -fx-font-size: 13px;
+}
+#headerOnlineBadge {
+    -fx-padding: 0 6px 0 0;
+}
+.online-dot {
+    -fx-background-color: -fx-green;
+    -fx-background-radius: 50%;
+    -fx-min-width: 5px;
+    -fx-min-height: 5px;
+    -fx-max-width: 5px;
+    -fx-max-height: 5px;
+}
+.online-count {
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-green;
+}
+.online-caption {
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-text-secondary;
+}
+
+/*-- Прев'ю сервера --*/
+#previewPanel {
+    -fx-border-color: transparent -fx-border transparent transparent;
+    -fx-border-width: 0 1px 0 0;
+}
+#previewShade {
+    -fx-background-color: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.7) 100%);
+}
+#previewStats .stat-caption {
+    -fx-font-size: 8px;
+    -fx-text-fill: rgba(255, 255, 255, 0.5);
+}
+#previewStats .stat-value {
+    -fx-font-size: 9px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: rgba(255, 255, 255, 0.9);
+}
+
+/*-- Вкладки --*/
+#infoTabsBar {
+    -fx-padding: 0 16px;
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+.settings-tab {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent transparent transparent;
+    -fx-border-width: 0 0 2px 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-padding: 8px 12px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-cursor: hand;
+}
+.settings-tab-active {
+    -fx-border-color: transparent transparent -fx-violet transparent;
+    -fx-text-fill: -fx-violet;
+}
+
+/*-- Опис сервера --*/
+#serverDescriptionPane {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+#serverDescriptionPane Label {
+    -fx-background-color: -fx-glass;
+    -fx-background-radius: 8px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-padding: 12px 14px;
+    -fx-font-size: 10px;
+    -fx-line-spacing: 4px;
+    -fx-text-fill: -fx-colors-text-secondary;
+}
+
+/*-- Моди --*/
+#tabMods {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.mod-row {
+    -fx-background-color: -fx-glass;
+    -fx-background-radius: 7px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 7px;
+    -fx-padding: 8px 11px;
+}
+.mod-icon {
+    -fx-font-size: 12px;
+    -fx-text-fill: -fx-violet;
+}
+.mod-name {
+    -fx-font-size: 10px;
     -fx-text-fill: -fx-colors-text;
+}
+.mod-description {
+    -fx-font-size: 8px;
+    -fx-text-fill: -fx-colors-text-secondary;
+}
+.mod-category-header {
+    -fx-font-size: 9px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-padding: 6px 0 2px 2px;
+}
+.mod-badge {
+    -fx-font-size: 8px;
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-background-color: -fx-glass;
+    -fx-background-radius: 3px;
+    -fx-padding: 2px 6px;
+}
+.toggle-switch-track {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-background-radius: 9px;
+}
+.toggle-switch-track-on {
+    -fx-background-color: -fx-violet;
+}
+.toggle-switch-thumb {
+    -fx-fill: white;
+}
+
+/*-- Футер --*/
+#infoFooter {
+    -fx-padding: 9px 16px;
+    -fx-border-color: -fx-border transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
 }

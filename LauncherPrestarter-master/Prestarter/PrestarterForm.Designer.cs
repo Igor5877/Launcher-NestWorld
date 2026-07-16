@@ -51,22 +51,23 @@ namespace Prestarter
             this.mainProgressBar.Size = new System.Drawing.Size(385, 14);
             this.mainProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
             this.mainProgressBar.TabIndex = 0;
-            // 
+            //
             // logoLabel
-            // 
+            //
             this.logoLabel.AutoSize = true;
-            this.logoLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 24F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.logoLabel.Location = new System.Drawing.Point(93, 21);
+            this.logoLabel.Font = new System.Drawing.Font("Segoe UI", 23.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.logoLabel.Location = new System.Drawing.Point(101, 12);
             this.logoLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.logoLabel.Name = "logoLabel";
             this.logoLabel.Size = new System.Drawing.Size(236, 37);
             this.logoLabel.TabIndex = 1;
             this.logoLabel.Text = "GravitLauncher";
-            // 
+            //
             // statusLabel
-            // 
+            //
             this.statusLabel.AutoSize = true;
-            this.statusLabel.Location = new System.Drawing.Point(100, 64);
+            this.statusLabel.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.statusLabel.Location = new System.Drawing.Point(102, 52);
             this.statusLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.statusLabel.Name = "statusLabel";
             this.statusLabel.Size = new System.Drawing.Size(90, 13);
@@ -84,23 +85,17 @@ namespace Prestarter
             this.logoPictureBox.TabIndex = 3;
             this.logoPictureBox.TabStop = false;
             this.logoPictureBox.UseWaitCursor = true;
-            // 
+            //
             // exitButton
-            // 
+            //
             this.exitButton.BackColor = System.Drawing.Color.Transparent;
             this.exitButton.Cursor = System.Windows.Forms.Cursors.Hand;
             this.exitButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.exitButton.Font = new System.Drawing.Font("Arial", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.exitButton.ForeColor = System.Drawing.Color.White;
-            this.exitButton.HoverColor = System.Drawing.Color.FromArgb(((int)(((byte)(232)))), ((int)(((byte)(17)))), ((int)(((byte)(35)))));
-            this.exitButton.Location = new System.Drawing.Point(373, 11);
+            this.exitButton.Location = new System.Drawing.Point(375, 9);
             this.exitButton.Margin = new System.Windows.Forms.Padding(2);
             this.exitButton.Name = "exitButton";
-            this.exitButton.NormalColor = System.Drawing.Color.FromArgb(((int)(((byte)(200)))), ((int)(((byte)(200)))), ((int)(((byte)(200)))));
             this.exitButton.Size = new System.Drawing.Size(23, 23);
             this.exitButton.TabIndex = 4;
-            this.exitButton.Text = "X";
-            this.exitButton.TextButtonColor = System.Drawing.Color.White;
             this.exitButton.UseVisualStyleBackColor = false;
             this.exitButton.Click += new System.EventHandler(this.CloseWindow);
             // 
@@ -108,7 +103,7 @@ namespace Prestarter
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.SystemColors.ControlDark;
+            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(17)))), ((int)(((byte)(20)))));
             this.ClientSize = new System.Drawing.Size(407, 121);
             this.Controls.Add(this.exitButton);
             this.Controls.Add(this.logoPictureBox);

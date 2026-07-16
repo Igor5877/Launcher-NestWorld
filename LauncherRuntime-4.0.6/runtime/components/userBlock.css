@@ -5,11 +5,13 @@
 }
 #nickname {
     -fx-font-weight: bold;
-    -fx-font-size: 14px;
+    -fx-font-size: 11px;
     -fx-text-fill: -fx-colors-text;
+    -fx-text-overrun: ellipsis;
 }
 #role {
     -fx-font-weight: normal;
-    -fx-font-size: 12px;
-    -fx-text-fill: -fx-colors-text;
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-text-overrun: ellipsis;
 }

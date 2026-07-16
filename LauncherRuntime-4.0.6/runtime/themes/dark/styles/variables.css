@@ -16,6 +16,8 @@
     -fx-colors-baseGA: rgba(30, 30, 36, 0.6);
     -fx-glass: rgba(255, 255, 255, 0.04);
     -fx-glass-hover: rgba(255, 255, 255, 0.07);
+    -fx-border: rgba(255, 255, 255, 0.08);
+    -fx-border-hover: rgba(255, 255, 255, 0.15);
     -fx-colors-text-secondary: #8888A0;
     -fx-bg2: #1e1e24;
     -fx-red: #C0392B;

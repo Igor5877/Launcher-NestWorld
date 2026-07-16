@@ -114,7 +114,10 @@ public abstract class AbstractStage {
             }
             stackPane.getChildren().set(scenePosition.get(), visualComponent.getFxmlRoot());
         }
-        stage.sizeToScene();
+        // sizeToScene() misjudges the preferred width for this transparent/undecorated stage
+        // (observed ~1024px instead of the fixed 930x560 design size), so we pin it directly.
+        stage.setWidth(pro.gravit.launcher.gui.config.DesignConstants.WINDOW_WIDTH);
+        stage.setHeight(pro.gravit.launcher.gui.config.DesignConstants.WINDOW_HEIGHT);
         visualComponent.postInit();
         this.visualComponent = visualComponent;
     }

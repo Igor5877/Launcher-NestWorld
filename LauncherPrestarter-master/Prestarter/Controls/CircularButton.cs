@@ -8,44 +8,50 @@ namespace Prestarter.Controls
     public class CircularButton : Button
     {
         private Color _hoverColor = Color.FromArgb(232, 17, 35);
-        private Color _normalColor = Color.FromArgb(200, 200, 200);
-        private Color _textColor = Color.White;
+        private Color _normalColor = Color.FromArgb(56, 255, 255, 255);
+        private Color _iconColor = Color.White;
         private bool _isHovered = false;
 
+        /// <summary>
+        ///     Цвет заливки круга при наведении курсора
+        /// </summary>
         public Color HoverColor
         {
             get => _hoverColor;
             set { _hoverColor = value; Invalidate(); }
         }
 
+        /// <summary>
+        ///     Цвет рамки круга в обычном состоянии (может быть полупрозрачным)
+        /// </summary>
         public Color NormalColor
         {
             get => _normalColor;
             set { _normalColor = value; Invalidate(); }
         }
 
-        public Color TextButtonColor
+        /// <summary>
+        ///     Цвет крестика внутри кнопки
+        /// </summary>
+        public Color IconColor
         {
-            get => _textColor;
-            set { _textColor = value; Invalidate(); }
+            get => _iconColor;
+            set { _iconColor = value; Invalidate(); }
         }
 
         public CircularButton()
         {
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            Size = new Size(30, 30);
+            Size = new Size(23, 23);
             BackColor = Color.Transparent;
-            ForeColor = _textColor;
-            Text = "×";
-            Font = new Font("Arial", 14, FontStyle.Bold);
             Cursor = Cursors.Hand;
 
             // Включаем двойную буферизацию
             SetStyle(
                 ControlStyles.AllPaintingInWmPaint |
                 ControlStyles.OptimizedDoubleBuffer |
-                ControlStyles.ResizeRedraw | 
+                ControlStyles.ResizeRedraw |
                 ControlStyles.SupportsTransparentBackColor |
                 ControlStyles.UserPaint,
                 true);
@@ -55,26 +61,44 @@ namespace Prestarter.Controls
         {
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Создаем круглую кнопку
+            var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
+
             using (var path = new GraphicsPath())
             {
-                path.AddEllipse(0, 0, Width - 1, Height - 1);
+                path.AddEllipse(bounds);
                 this.Region = new Region(path);
 
-                // Цвет кнопки зависит от того, наведена ли на нее мышь
-                using (SolidBrush brush = new SolidBrush(_isHovered ? _hoverColor : _normalColor))
+                if (_isHovered)
                 {
-                    e.Graphics.FillPath(brush, path);
+                    using (SolidBrush brush = new SolidBrush(_hoverColor))
+                    {
+                        e.Graphics.FillPath(brush, path);
+                    }
+                }
+                else if (_normalColor.A > 0)
+                {
+                    using (Pen pen = new Pen(_normalColor, 1f))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
                 }
 
-                // Рисуем текст на кнопке
-                TextRenderer.DrawText(
-                    e.Graphics,
-                    Text,
-                    Font,
-                    new Rectangle(0, 0, Width, Height),
-                    ForeColor,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                DrawCross(e.Graphics);
+            }
+        }
+
+        private void DrawCross(Graphics g)
+        {
+            float minSide = Math.Min(Width, Height);
+            float half = minSide * 0.39f / 2f;
+            float cx = Width / 2f;
+            float cy = Height / 2f;
+            float strokeWidth = Math.Max(1f, minSide * 1.4f / 23f);
+
+            using (Pen pen = new Pen(_iconColor, strokeWidth) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            {
+                g.DrawLine(pen, cx - half, cy - half, cx + half, cy + half);
+                g.DrawLine(pen, cx + half, cy - half, cx - half, cy + half);
             }
         }
 

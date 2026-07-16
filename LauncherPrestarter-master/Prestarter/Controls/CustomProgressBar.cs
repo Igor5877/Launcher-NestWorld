@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+using System;
+using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
@@ -6,13 +7,27 @@ namespace Prestarter.Controls
 {
     public class CustomProgressBar : ProgressBar
     {
+        private const float MarqueeStripeWidth = 0.34f;
+
         private Color _customColor = Color.Green;
+        private Color? _trackColor;
         private int _radius = 6;
+        private float _marqueeOffset = -MarqueeStripeWidth;
+        private readonly Timer _marqueeTimer;
 
         public Color ProgressBarColor
         {
             get => _customColor;
             set { _customColor = value; Invalidate(); }
+        }
+
+        /// <summary>
+        ///     Цвет дорожки прогресс-бара. Если не задан явно, используется BackColor (старое поведение).
+        /// </summary>
+        public Color TrackColor
+        {
+            get => _trackColor ?? BackColor;
+            set { _trackColor = value; Invalidate(); }
         }
 
         public int BorderRadius
@@ -21,44 +36,103 @@ namespace Prestarter.Controls
             set { _radius = value; Invalidate(); }
         }
 
+        /// <summary>
+        ///     Длительность одного прохода marquee-полосы слева направо, мс.
+        /// </summary>
+        public int MarqueeDurationMs { get; set; } = 1400;
+
+        public new ProgressBarStyle Style
+        {
+            get => base.Style;
+            set
+            {
+                base.Style = value;
+                if (value == ProgressBarStyle.Marquee)
+                    _marqueeTimer.Start();
+                else
+                    _marqueeTimer.Stop();
+            }
+        }
+
         public CustomProgressBar()
         {
-            this.SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+
+            _marqueeTimer = new Timer { Interval = 16 };
+            _marqueeTimer.Tick += MarqueeTimerOnTick;
+        }
+
+        private void MarqueeTimerOnTick(object sender, EventArgs e)
+        {
+            float travel = 1f + MarqueeStripeWidth;
+            _marqueeOffset += travel * _marqueeTimer.Interval / Math.Max(1, MarqueeDurationMs);
+            if (_marqueeOffset > 1f)
+                _marqueeOffset = -MarqueeStripeWidth;
+
+            Invalidate();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _marqueeTimer.Dispose();
+
+            base.Dispose(disposing);
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            var rec = e.ClipRectangle;
+            var rect = new Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
 
-            // Включаем сглаживание для лучшего качества рисования
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Создаем прямоугольную область с закругленными углами для фона
-            using (GraphicsPath path = CreateRoundedRectangle(new Rectangle(0, 0, rec.Width, rec.Height), BorderRadius))
+            using (GraphicsPath path = CreateRoundedRectangle(rect, BorderRadius))
             {
-                // Рисуем фон
-                using (SolidBrush brush = new SolidBrush(BackColor))
+                var oldClip = e.Graphics.Clip;
+                e.Graphics.SetClip(path, CombineMode.Replace);
+
+                using (SolidBrush trackBrush = new SolidBrush(TrackColor))
                 {
-                    e.Graphics.FillPath(brush, path);
+                    e.Graphics.FillPath(trackBrush, path);
                 }
 
-                // Рисуем прогресс
-                if (Value > 0)
+                if (base.Style == ProgressBarStyle.Marquee)
+                {
+                    DrawMarquee(e.Graphics, rect);
+                }
+                else if (Value > 0)
                 {
                     float percent = (float)Value / Maximum;
-                    int width = (int)(rec.Width * percent);
+                    int width = (int)(rect.Width * percent);
 
-                    // Создаем прямоугольную область с закругленными углами для прогресса
-                    // Прогресс должен быть обрезан до текущего значения
-                    Rectangle progressRect = new Rectangle(0, 0, width, rec.Height);
+                    Rectangle progressRect = new Rectangle(0, 0, width, rect.Height);
                     using (GraphicsPath progressPath = CreateRoundedRectangle(progressRect, BorderRadius))
+                    using (SolidBrush brush = new SolidBrush(ProgressBarColor))
                     {
-                        using (SolidBrush brush = new SolidBrush(ProgressBarColor))
-                        {
-                            e.Graphics.FillPath(brush, progressPath);
-                        }
+                        e.Graphics.FillPath(brush, progressPath);
                     }
                 }
+
+                e.Graphics.Clip = oldClip;
+            }
+        }
+
+        private void DrawMarquee(Graphics g, Rectangle rect)
+        {
+            float stripeWidth = rect.Width * MarqueeStripeWidth;
+            float x = rect.Width * _marqueeOffset;
+            var stripeRect = new RectangleF(x, 0, stripeWidth, rect.Height);
+
+            using (var brush = new LinearGradientBrush(stripeRect, ProgressBarColor, ProgressBarColor, LinearGradientMode.Horizontal))
+            {
+                var transparent = Color.FromArgb(0, ProgressBarColor);
+                brush.InterpolationColors = new ColorBlend(4)
+                {
+                    Colors = new[] { transparent, ProgressBarColor, ProgressBarColor, transparent },
+                    Positions = new[] { 0f, 0.25f, 0.75f, 1f }
+                };
+
+                g.FillRectangle(brush, stripeRect);
             }
         }
 
