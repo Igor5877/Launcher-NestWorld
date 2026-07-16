@@ -31,6 +31,10 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
     // недійсним попередній — тому дублікати кліків треба гасити тут.
     private final java.util.concurrent.atomic.AtomicBoolean authInFlight =
             new java.util.concurrent.atomic.AtomicBoolean(false);
+    // Дебаунс попередження "порожні поля" - без нього автоклікер спамить нотифікаціями
+    // швидше, ніж вони встигають згаснути.
+    private final java.util.concurrent.atomic.AtomicBoolean emptyFieldsWarningActive =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     public LoginAndPasswordAuthMethod(LoginScene.LoginSceneAccessor accessor) {
         this.accessor = accessor;
@@ -98,8 +102,19 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
         // повертає не той JSON-об'єкт, який очікує azauth-клієнт, і замість
         // зрозумілої помилки клієнт падає з сирим Gson-стеком (Expected BEGIN_OBJECT).
         if (login.isBlank() || rawPassword.isBlank()) {
-            overlay.future.completeExceptionally(new RequestException(
-                    application.getTranslation("runtime.scenes.login.emptyFields")));
+            // НЕ через overlay.future.completeExceptionally(): це проганяє AuthFlow.start()
+            // в exceptionally-гілку, яка робить повний reset() (перестворення форми входу
+            // й повторну реєстрацію її слухачів) + нову спливаючу нотифікацію - НА КОЖЕН
+            // виклик. Автоклікер по кнопці з порожніми полями (сотні кліків/сек) за секунди
+            // засипає FX-потік тисячами копій notification.fxml і перебудов форми, аж поки
+            // вікно не замерзає вглухо. Показуємо попередження напряму, форму не чіпаємо,
+            // і не даємо повторному кліку створити ще одну нотифікацію, поки перша не згасла.
+            if (emptyFieldsWarningActive.compareAndSet(false, true)) {
+                accessor.errorHandle(new RequestException(application.getTranslation("runtime.scenes.login.emptyFields")));
+                javafx.animation.PauseTransition cooldown = new javafx.animation.PauseTransition(javafx.util.Duration.millis(800));
+                cooldown.setOnFinished(e -> emptyFieldsWarningActive.set(false));
+                cooldown.play();
+            }
             return;
         }
         if (!authInFlight.compareAndSet(false, true)) {
