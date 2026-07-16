@@ -106,6 +106,27 @@ public class StdWebSocketService extends ClientWebSocketService implements Reque
     }
 
     @Override
+    void onDisconnect(int statusCode, String reason) {
+        super.onDisconnect(statusCode, reason);
+        // Без цього: якщо з'єднання рветься (напр. код 1006) поки запит (напр. auth) уже
+        // відправлений і чекає відповіді, його future ніколи не завершується - сервер більше
+        // не надішле подію на цей requestUUID через мертвий сокет, і жоден таймаут/реконект
+        // її не підхоплює. UI, що чекає на цей future (напр. екран авторизації), просто
+        // зависає назавжди без жодної помилки на екрані.
+        if (!futureMap.isEmpty()) {
+            RequestException disconnectError = new RequestException(
+                    "WebSocket connection lost (%d: %s)".formatted(statusCode, reason == null ? "" : reason));
+            for (UUID id : new java.util.ArrayList<>(futureMap.keySet())) {
+                @SuppressWarnings("rawtypes")
+                CompletableFuture pending = futureMap.remove(id);
+                if (pending != null) {
+                    pending.completeExceptionally(disconnectError);
+                }
+            }
+        }
+    }
+
+    @Override
     public void registerEventHandler(RequestService.EventHandler handler) {
         eventHandlers.add(handler);
     }
