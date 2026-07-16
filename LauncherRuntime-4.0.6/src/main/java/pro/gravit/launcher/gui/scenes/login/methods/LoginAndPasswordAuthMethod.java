@@ -138,7 +138,16 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
                 String accessToken = result.getSuccessResult().getAccessToken();
                 return new AuthFlow.LoginAndPasswordResult(login, new AuthOAuthPassword(accessToken));
             } catch (AuthException e) {
-                throw new RuntimeException(e.getMessage(), e);
+                // Повідомлення тут - сирий текст від Azuriom (за замовчуванням англійською,
+                // напр. "Invalid credentials"), а не наш код помилки - тому звичайний шлях
+                // перекладу через "runtime.request.<код>" тут не спрацює. Перекладаємо
+                // найпоширеніший випадок напряму; RequestException-обгортку робимо нижче,
+                // у whenComplete (тут не можна - RequestException checked, Supplier ні).
+                String rawMessage = e.getMessage();
+                String message = "Invalid credentials".equalsIgnoreCase(rawMessage)
+                        ? application.getTranslation("runtime.scenes.login.invalidCredentials", rawMessage)
+                        : rawMessage;
+                throw new RuntimeException(message, e);
             }
         }).orTimeout(60, java.util.concurrent.TimeUnit.SECONDS).whenComplete((res, ex) -> {
             // Завершуємо future в FX-потоці: подальший ланцюжок AuthFlow працює зі сценою,
@@ -148,7 +157,9 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
                 authInFlight.set(false);
                 if (ex != null) {
                     Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-                    overlay.future.completeExceptionally(cause);
+                    // RequestException (замість "сирого" cause) - щоб errorHandle() показав
+                    // вже перекладене повідомлення без потворного префіксу класу винятку.
+                    overlay.future.completeExceptionally(new RequestException(cause.getMessage(), cause));
                 } else {
                     overlay.future.complete(res);
                 }
