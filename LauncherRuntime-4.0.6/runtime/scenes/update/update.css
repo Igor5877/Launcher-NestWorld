@@ -1,53 +1,254 @@
-/*-- Информация о загрузке --*/
-#outputUpdate {
-    -fx-text-fill: -fx-colors-text;
+/*-- Навбар --*/
+#header {
+    -fx-background-color: rgba(17, 17, 20, 0.85);
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+#header .scene-header {
+    -fx-font-size: 13px;
+}
+#headerLogoBadge {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, -fx-violet, #7A0100);
+    -fx-background-radius: 6px;
+}
+
+/*-- Рядок профілю клієнта --*/
+#profileIconBadge {
+    -fx-background-color: -fx-violetTr;
+    -fx-border-color: -fx-violet;
+    -fx-border-width: 1px;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+}
+#profileIcon {
+    -fx-font-size: 15px;
+}
+#profileName {
     -fx-font-size: 12px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text;
 }
-.anchor-block-information {
-    -fx-padding: 15px 20px 40px 15px;
+#profileVersion {
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-unactive;
 }
-/*-- Вывод данных --*/
-#update-detail {
-    -fx-background-color: -fx-colors-base;
+
+/*-- Бейдж стану --*/
+#phaseBadge {
+    -fx-padding: 7px 12px;
+    -fx-background-color: -fx-violetTr;
+    -fx-border-color: -fx-violet;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+.phase-badge-icon {
+    -fx-font-size: 11px;
+    -fx-text-fill: -fx-violet;
+}
+.phase-badge-text,
+.phase-badge-count {
+    -fx-font-size: 9px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text;
+}
+#phaseBadge.phase-badge-error {
+    -fx-background-color: rgba(192, 57, 43, 0.12);
+    -fx-border-color: -fx-red;
+}
+#phaseBadge.phase-badge-error .phase-badge-icon {
+    -fx-text-fill: -fx-red;
+}
+
+/*-- Чек-лист фаз --*/
+.phase-card {
+    -fx-background-color: -fx-glass;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 12px;
+    -fx-background-radius: 12px;
+    -fx-padding: 12px;
+}
+.phase-row {
+    -fx-opacity: 0.4;
+}
+.phase-row.phase-row-current,
+.phase-row.phase-row-done,
+.phase-row.phase-row-error {
+    -fx-opacity: 1.0;
+}
+.phase-icon {
+    -fx-font-size: 10px;
+    -fx-text-fill: -fx-colors-unactive;
+}
+.phase-row-done .phase-icon {
+    -fx-text-fill: -fx-green;
+}
+.phase-row-current .phase-icon {
+    -fx-text-fill: -fx-violet;
+}
+.phase-row-error .phase-icon {
+    -fx-text-fill: -fx-red;
+}
+.phase-text {
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-text;
+    -fx-wrap-text: true;
+}
+.phase-row-current .phase-text {
+    -fx-font-family: 'Comfortaa Bold';
+}
+
+/*-- Картка статусу --*/
+#statusCard {
+    -fx-background-color: -fx-colors-baseG;
+    -fx-border-color: -fx-violetTr;
+    -fx-border-width: 1px;
     -fx-background-radius: 20px;
+    -fx-border-radius: 20px;
     -fx-effect: -fx-effect-dropshadow;
 }
-#speed {
+#statusAccent {
+    -fx-pref-height: 2px;
+    -fx-max-height: 2px;
+    -fx-background-color: linear-gradient(to right, #7A0100, #9F0200);
+}
+#statusValue {
     -fx-text-fill: linear-gradient(to right, #C0392B 0%, #9F0200 100%);
     -fx-text-align: center;
-    -fx-font-size: 48px;
+    -fx-font-size: 38px;
     -fx-font-weight: bold;
 }
-#speed-text {
-    -fx-font-size: 14px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -fx-colors-text;
+#statusSubtext {
+    -fx-font-size: 9px;
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-wrap-text: true;
+    -fx-text-alignment: center;
 }
-#volume {
-    -fx-text-fill: -fx-colors-text;
-}
-.speedError {
+#statusCard.status-error #statusValue {
     -fx-text-fill: -fx-red;
-    -fx-font-size: 48px;
 }
-/* Прогресс бар */
+#statusCardFooter {
+    -fx-padding: 0 16px 10px 16px;
+}
+#statusPhaseLabel,
+#statusPercentLabel {
+    -fx-font-size: 8px;
+    -fx-text-fill: -fx-colors-unactive;
+}
+
+/*-- Лог процесу --*/
+#logColumn {
+    -fx-background-color: -fx-colors-baseG;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+}
+#logHeader {
+    -fx-padding: 8px 12px;
+    -fx-background-color: -fx-bg2;
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-background-radius: 10px 10px 0 0;
+}
+.log-icon {
+    -fx-font-size: 10px;
+    -fx-text-fill: -fx-colors-unactive;
+}
+.log-title {
+    -fx-font-size: 9px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-colors-text-secondary;
+}
+.log-count {
+    -fx-font-size: 8px;
+    -fx-text-fill: -fx-colors-unactive;
+}
+#logScroll {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0 0 10px 10px;
+}
+#outputUpdate {
+    -fx-padding: 8px 12px;
+    -fx-background-color: transparent;
+}
+.log-line {
+    -fx-font-size: 10px;
+    -fx-text-fill: -fx-colors-text-secondary;
+    -fx-wrap-text: true;
+}
+.log-line-success {
+    -fx-text-fill: -fx-green;
+}
+.log-line-error {
+    -fx-text-fill: -fx-violet;
+}
+
+/*-- Нижня панель --*/
+.state-label {
+    -fx-font-size: 9px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-violet;
+}
+.percent-label,
+.percent-sep,
+.volume-label {
+    -fx-font-size: 9px;
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-text-fill: -fx-violet;
+}
+/* Прогрес-бар */
 ProgressBar {
     -fx-indeterminate-bar-flip: false;
-    -fx-background-color: -fx-colors-baseG;
-    -fx-background-radius: 0px 10px 10px 0px;
-    -fx-effect: -fx-effect-dropshadow;
+    -fx-background-color: -fx-glass;
+    -fx-border-color: -fx-violetTr;
+    -fx-border-width: 1px;
+    -fx-background-radius: 0px 7px 7px 0px;
+    -fx-border-radius: 0px 7px 7px 0px;
 }
 ProgressBar>.bar {
     -fx-background-color: -fx-updateGR;
     -fx-background-insets: 0px;
-    -fx-background-radius: 0px 10px 10px 0px;
+    -fx-background-radius: 0px 7px 7px 0px;
+    -fx-effect: dropshadow(gaussian, rgba(159, 2, 0, 0.5), 14, 0, 0, 0);
 }
 ProgressBar>.track {
     -fx-background-color: transparent;
     -fx-background-insets: 0;
-    -fx-background-radius: 0px 10px 10px 0px;
+    -fx-background-radius: 0px 7px 7px 0px;
 }
-/* Добавляется при ошибке загрузки */
+/* Додається при помилці завантаження */
+.progressError {
+    -fx-border-color: -fx-red;
+}
 .progressError>.bar {
     -fx-background-color: -fx-errorGR;
+}
+
+/*-- Кнопки дій --*/
+.action-button-primary {
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-font-size: 10px;
+    -fx-text-fill: white;
+    -fx-background-color: linear-gradient(to bottom right, -fx-violet 0%, #7A0100 100%);
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 18px;
+}
+.action-button-primary:hover {
+    -fx-background-color: linear-gradient(to bottom right, #C0392B 0%, -fx-violet 100%);
+}
+.action-button-secondary {
+    -fx-font-family: 'Comfortaa Bold';
+    -fx-font-size: 10px;
+    -fx-text-fill: -fx-colors-text;
+    -fx-background-color: -fx-glass;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+    -fx-padding: 8px 18px;
+}
+.action-button-secondary:hover {
+    -fx-background-color: -fx-glass-hover;
 }

@@ -6,6 +6,7 @@ import pro.gravit.launcher.gui.JavaFXApplication;
 import pro.gravit.launcher.gui.config.RuntimeSettings;
 import pro.gravit.launcher.gui.impl.AbstractStage;
 import pro.gravit.launcher.gui.impl.ContextHelper;
+import pro.gravit.launcher.gui.scenes.update.UpdateScene;
 import pro.gravit.launcher.runtime.client.ClientLauncherProcess;
 import pro.gravit.launcher.runtime.client.DirBridge;
 import pro.gravit.launcher.core.hasher.HashedDir;
@@ -42,9 +43,11 @@ public class LaunchService {
         Path target = DirBridge.dirUpdates.resolve(profile.getAssetDir());
         LogHelper.info("Start update to %s", target.toString());
         boolean testUpdate = isTestUpdate(profile, settings);
+        application.gui.updateScene.setPhase(UpdateScene.Phase.ASSETS);
         Consumer<HashedDir> next = (assetHDir) -> {
             Path targetClient = DirBridge.dirUpdates.resolve(profile.getDir());
             LogHelper.info("Start update to %s", targetClient.toString());
+            application.gui.updateScene.setPhase(UpdateScene.Phase.CLIENT);
             application.gui.updateScene.sendUpdateRequest(profile.getDir(), targetClient,
                                                           profile.getClientUpdateMatcher(), true,
                                                           application.profilesService.getOptionalView(), true, testUpdate,
@@ -73,6 +76,7 @@ public class LaunchService {
 
     private ClientInstance doLaunchClient(Path assetDir, HashedDir assetHDir, Path clientDir, HashedDir clientHDir,
             ClientProfile profile, OptionalView view, JavaHelper.JavaVersion javaVersion, HashedDir jvmHDir) {
+        application.gui.updateScene.setPhase(UpdateScene.Phase.LAUNCH);
         RuntimeSettings.ProfileSettings profileSettings = application.getProfileSettings();
         if (javaVersion == null) {
             javaVersion = application.javaService.getRecommendJavaVersion(profile);
@@ -174,6 +178,7 @@ public class LaunchService {
                         } catch (Exception e) {
                             future.completeExceptionally(e);
                         }
+                        application.gui.updateScene.setPhase(UpdateScene.Phase.JAVA);
                         application.gui.updateScene.
                                 sendUpdateRequest(jvmDirName, javaVersion.jvmDir, null, true,
                                                   application.profilesService.getOptionalView(), false, isTestUpdate(profile, profileSettings),
