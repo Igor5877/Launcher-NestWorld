@@ -210,6 +210,15 @@ public final class IOHelper {
     }
 
     public static void move(Path source, Path target) throws IOException {
+        Path src = source.toAbsolutePath().normalize();
+        Path dst = target.toAbsolutePath().normalize();
+        if (dst.startsWith(src)) {
+            // MoveFileVisitor walks 'source' live: if 'target' is source itself or nested
+            // inside it, newly created destination dirs get re-visited by the same walk,
+            // recursively nesting themselves (assets/assets/assets/...) until the OS path
+            // length limit is hit.
+            throw new IOException("Cannot move directory into itself or its own subdirectory: " + source + " -> " + target);
+        }
         IOHelper.walk(source, new MoveFileVisitor(source, target), true);
     }
 

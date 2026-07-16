@@ -117,7 +117,12 @@ public class SettingsScene extends BaseSettingsScene implements SceneSupportUser
             directoryChooser.setInitialDirectory(DirBridge.dir.toFile());
             File choose = directoryChooser.showDialog(application.getMainStage().getStage());
             if (choose == null) return;
-            Path newDir = choose.toPath().toAbsolutePath();
+            Path newDir = choose.toPath().toAbsolutePath().normalize();
+            Path currentUpdates = DirBridge.dirUpdates.toAbsolutePath().normalize();
+            if (newDir.startsWith(currentUpdates)) {
+                errorHandle(new IOException(application.getTranslation("runtime.scenes.settings.invalidUpdatesDir")));
+                return;
+            }
             try {
                 DirBridge.move(newDir);
             } catch (IOException ex) {
