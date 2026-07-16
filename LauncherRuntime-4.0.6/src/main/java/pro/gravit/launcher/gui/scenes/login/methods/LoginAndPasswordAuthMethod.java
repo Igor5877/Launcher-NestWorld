@@ -4,6 +4,7 @@ import com.azuriom.azauth.AuthClient;
 import com.azuriom.azauth.AuthResult;
 import com.azuriom.azauth.exception.AuthException;
 import javafx.scene.control.TextField;
+import pro.gravit.launcher.base.request.RequestException;
 import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
 import pro.gravit.launcher.gui.JavaFXApplication;
 import pro.gravit.launcher.gui.helper.LookupHelper;
@@ -91,11 +92,19 @@ public class LoginAndPasswordAuthMethod extends AbstractAuthMethod<AuthPasswordD
             overlay.future.complete(overlay.getResult());
             return;
         }
+        String login = overlay.login.getText();
+        String rawPassword = overlay.password.getText();
+        // Порожні поля не повинні йти в HTTP-запит до Azuriom: сайт на такий запит
+        // повертає не той JSON-об'єкт, який очікує azauth-клієнт, і замість
+        // зрозумілої помилки клієнт падає з сирим Gson-стеком (Expected BEGIN_OBJECT).
+        if (login.isBlank() || rawPassword.isBlank()) {
+            overlay.future.completeExceptionally(new RequestException(
+                    application.getTranslation("runtime.scenes.login.emptyFields")));
+            return;
+        }
         if (!authInFlight.compareAndSet(false, true)) {
             return; // попередній вхід ще триває
         }
-        String login = overlay.login.getText();
-        String rawPassword = overlay.password.getText();
         final String url = pendingUrl;
         CompletableFuture.supplyAsync(() -> {
             try {
