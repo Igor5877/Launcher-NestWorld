@@ -62,6 +62,10 @@ public abstract class AbstractStage {
         stage.hide();
     }
 
+    /** За замовчуванням нічого не робить: розгортання на весь екран має сенс лише для головного вікна. */
+    public void toggleMaximize() {
+    }
+
     public void resetStyles() {
         try {
             this.scene.getStylesheets().clear();
@@ -114,10 +118,13 @@ public abstract class AbstractStage {
             }
             stackPane.getChildren().set(scenePosition.get(), visualComponent.getFxmlRoot());
         }
-        // sizeToScene() misjudges the preferred width for this transparent/undecorated stage
-        // (observed ~1024px instead of the fixed 930x560 design size), so we pin it directly.
-        stage.setWidth(pro.gravit.launcher.gui.config.DesignConstants.WINDOW_WIDTH);
-        stage.setHeight(pro.gravit.launcher.gui.config.DesignConstants.WINDOW_HEIGHT);
+        if (!stage.isResizable()) {
+            // sizeToScene() misjudges the preferred width for this transparent/undecorated stage
+            // (observed ~1024px instead of the fixed 930x560 design size), so we pin it directly.
+            // Resizable stages (the main window) manage their own size themselves, see PrimaryStage.
+            stage.setWidth(pro.gravit.launcher.gui.config.DesignConstants.WINDOW_WIDTH);
+            stage.setHeight(pro.gravit.launcher.gui.config.DesignConstants.WINDOW_HEIGHT);
+        }
         visualComponent.postInit();
         this.visualComponent = visualComponent;
     }

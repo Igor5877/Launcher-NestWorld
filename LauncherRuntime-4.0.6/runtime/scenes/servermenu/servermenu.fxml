@@ -16,6 +16,7 @@
         <!-- Кнопки управления -->
         <HBox id="controls" alignment="CENTER" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="0.0">
             <fx:include source="../../components/buttons/minimize.fxml" />
+            <fx:include source="../../components/buttons/maximize.fxml" />
             <fx:include source="../../components/buttons/exit.fxml" />
         </HBox>
     </AnchorPane>

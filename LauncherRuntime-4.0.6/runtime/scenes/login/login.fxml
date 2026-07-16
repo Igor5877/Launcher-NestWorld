@@ -100,6 +100,7 @@
             </FlowPane>
             <Region maxHeight="16.0" minHeight="16.0" prefHeight="16.0" prefWidth="1.0" styleClass="vdivider" />
             <fx:include source="../../components/buttons/minimize.fxml" />
+            <fx:include source="../../components/buttons/maximize.fxml" />
             <fx:include source="../../components/buttons/exit.fxml" />
         </HBox>
     </AnchorPane>

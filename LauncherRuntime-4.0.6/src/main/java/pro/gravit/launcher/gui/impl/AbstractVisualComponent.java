@@ -66,6 +66,8 @@ public abstract class AbstractVisualComponent {
                         .ifPresent((b) -> b.setOnAction((e) -> currentStage.close()));
             LookupHelper.<ButtonBase>lookupIfPossible(header, "#controls", "#minimize")
                         .ifPresent((b) -> b.setOnAction((e) -> currentStage.hide()));
+            LookupHelper.<ButtonBase>lookupIfPossible(header, "#controls", "#maximize")
+                        .ifPresent((b) -> b.setOnAction((e) -> currentStage.toggleMaximize()));
         }
         currentStage.enableMouseDrag(layout);
     }
