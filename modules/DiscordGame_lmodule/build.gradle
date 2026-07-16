@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+}
+
+sourceCompatibility = '17'
+targetCompatibility = '17'
+
+version = '1.1.0.1'
+
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    compileOnly project(':LauncherAPI')
+    compileOnly project(':LauncherCore')
+    compileOnly project(':LauncherClient')
+    compileOnly project(':Launcher')
+
+    implementation('com.github.JnCrMx:discord-game-sdk4j:v1.0.0') {
+        exclude group: 'com.google.code.gson', module: 'gson'
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+                'Module-Main-Class': 'pro.gravit.launchermodules.discordgame.ClientModule',
+                'Module-Config-Class': 'pro.gravit.launchermodules.discordgame.Config',
+                'Module-Config-Name': 'DiscordGame'
+        )
+    }
+}

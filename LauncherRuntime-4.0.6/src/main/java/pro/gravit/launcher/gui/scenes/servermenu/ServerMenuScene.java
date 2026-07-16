@@ -56,6 +56,7 @@ public class ServerMenuScene extends AbstractScene implements SceneSupportUserBl
 
     @Override
     public void reset() {
+        pro.gravit.launcher.gui.utils.DiscordPresenceBridge.updateServerMenuStage();
         if (lastProfiles == application.profilesService.getProfiles()) return;
         lastProfiles = application.profilesService.getProfiles();
         Map<ClientProfile, ServerButtonCache> serverButtonCacheMap = new LinkedHashMap<>();

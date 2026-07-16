@@ -181,6 +181,7 @@ public class ServerInfoScene extends AbstractScene implements SceneSupportUserBl
     @Override
     public void reset() {
         ClientProfile profile = application.profilesService.getProfile();
+        pro.gravit.launcher.gui.utils.DiscordPresenceBridge.updateServerSelectStage(profile.getTitle());
         LookupHelper.<Label>lookupIfPossible(layout, "#serverName").ifPresent((e) -> e.setText(profile.getTitle()));
         LookupHelper.<ScrollPane>lookupIfPossible(layout, "#serverDescriptionPane").ifPresent((e) -> {
             var label = (Label) e.getContent();

@@ -7,6 +7,7 @@ import pro.gravit.launcher.gui.JavaFXApplication;
 import pro.gravit.launcher.gui.helper.LookupHelper;
 import pro.gravit.launcher.gui.scenes.AbstractScene;
 import pro.gravit.launcher.gui.service.LaunchService;
+import pro.gravit.launcher.gui.utils.DiscordPresenceBridge;
 import pro.gravit.utils.helper.LogHelper;
 
 import java.io.*;
@@ -55,8 +56,17 @@ public class DebugScene extends AbstractScene {
             errorHandle(e);
             return null;
         });
-        this.clientInstance.start().thenAccept((code) -> processLogOutput.append(String.format("[START] Process exit with code %d", code))).exceptionally((e) -> {
+        // У debug-режимі вікно лаунчера не закривається (на відміну від звичайного запуску),
+        // тож паралельно з процесом гри лишається живим і власне Discord-з'єднання лаунчера.
+        // Обидва з'єднання з тим самим appId конкурують за показаний статус - тимчасово
+        // призупиняємо своє, поки грає дочірній процес.
+        DiscordPresenceBridge.pausePresence();
+        this.clientInstance.start().thenAccept((code) -> {
+            processLogOutput.append(String.format("[START] Process exit with code %d", code));
+            DiscordPresenceBridge.resumePresence();
+        }).exceptionally((e) -> {
             errorHandle(e);
+            DiscordPresenceBridge.resumePresence();
             return null;
         });
     }
