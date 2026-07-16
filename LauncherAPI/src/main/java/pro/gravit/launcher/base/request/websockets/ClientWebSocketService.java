@@ -2,6 +2,7 @@ package pro.gravit.launcher.base.request.websockets;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import pro.gravit.launcher.base.Launcher;
 import pro.gravit.launcher.base.events.NotificationEvent;
 import pro.gravit.launcher.base.events.request.*;
@@ -60,7 +61,16 @@ public abstract class ClientWebSocketService extends ClientJSONPoint {
 
     @Override
     void onMessage(String message) {
-        WebSocketEvent result = gson.fromJson(message, WebSocketEvent.class);
+        WebSocketEvent result;
+        try {
+            result = gson.fromJson(message, WebSocketEvent.class);
+        } catch (JsonSyntaxException | IllegalStateException e) {
+            // Логуємо сирий вміст, щоб було видно, що саме прийшло замість JSON-об'єкта,
+            // а не лише незрозумілий стек Gson.
+            LogHelper.error("Failed to parse WebSocket message: %s", e.toString());
+            LogHelper.error("Raw message: %s", message);
+            return;
+        }
         eventHandle(result);
     }
 
