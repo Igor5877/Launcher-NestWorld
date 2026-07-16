@@ -39,6 +39,15 @@ public class AuthFlow {
     // Після невдалого refresh через мережу токени збережені, але повторювати
     // OAuth-цикл у цій же сесії не можна — інакше loginWithGui зациклиться.
     private volatile boolean skipOAuthOnce;
+    // Захист від того ж trigger'а, що і authInFlight в LoginAndPasswordAuthMethod, але на
+    // рівень вище: doInit() форми логіна не ідемпотентний (додає слухачів текстових полів
+    // щоразу заново), а authMethodOnShow виставляється лише АСИНХРОННО, коли show()
+    // долетить до FX-потоку. Автоклікер, що б'є по кнопці частіше за один pulse FX-потоку,
+    // встигав викликати loginWithGui() безліч разів ДО того, як authMethodOnShow взагалі
+    // стає не-null — кожен виклик заново запускав tryLogin()/show(), лавиноподібно
+    // накопичуючи Platform.runLater-задачі й дублікати слухачів, аж до заморожування вікна.
+    private final java.util.concurrent.atomic.AtomicBoolean startInProgress =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     public AuthFlow(LoginScene.LoginSceneAccessor accessor, Consumer<SuccessAuth> onSuccessAuth) {
         this.accessor = accessor;
@@ -55,6 +64,7 @@ public class AuthFlow {
     }
 
     public void reset() {
+        startInProgress.set(false);
         authFlow.clear();
         authFlow.add(0);
         if (authMethodOnShow != null) {
@@ -87,6 +97,7 @@ public class AuthFlow {
                     details);
             if (authFuture == null) authFuture = authMethod.show(details).thenCompose((x) -> {
                 authMethodOnShow = authMethod;
+                startInProgress.set(false);
                 return CompletableFuture.completedFuture(x);
             }).thenCompose((e) -> authMethod.auth(details)).thenCompose((x) -> {
                 authMethodOnShow = null;
@@ -96,6 +107,7 @@ public class AuthFlow {
                 authFuture = authFuture.thenCompose(e -> authMethod.show(details).thenApply(x -> e));
                 authFuture = authFuture.thenCompose((x) -> {
                     authMethodOnShow = authMethod;
+                    startInProgress.set(false);
                     return CompletableFuture.completedFuture(x);
                 });
                 authFuture = authFuture.thenCompose(first -> authMethod.auth(details).thenApply(second -> {
@@ -142,6 +154,7 @@ public class AuthFlow {
         CompletableFuture<LoginAndPasswordResult> authFuture = tryLogin(resentLogin, resentPassword);
         authFuture.thenAccept(e -> login(e.login, e.password, authAvailability, result)).exceptionally((e) -> {
             e = e.getCause();
+            startInProgress.set(false);
             reset();
             isLoginStarted = false;
             if (e instanceof AbstractAuthMethod.UserAuthCanceledException) {
@@ -215,6 +228,11 @@ public class AuthFlow {
             }
         }
         if (tryOAuthLogin()) return;
+        // authMethodOnShow ще null (форма не встигла показатись) - без цього гварда
+        // кожен зайвий клік у цьому вікні заново запускав би start()/tryLogin().
+        if (!startInProgress.compareAndSet(false, true)) {
+            return;
+        }
         start().thenAccept((result) -> {
             if (onSuccessAuth != null) {
                 onSuccessAuth.accept(result);
