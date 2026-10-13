@@ -55,7 +55,7 @@
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" name="profiles[]" value="{{ $profile->uuid }}"
                                    id="profile-{{ $profile->uuid }}" data-profile-box="{{ $profile->uuid }}"
-                                   data-inherited="{{ $profileInherited ? '1' : '0' }}" @checked($profileSelected)>
+                                   data-inherited="{{ $profileInherited ? '1' : '0' }}" data-public="{{ $profile->limited ? '0' : '1' }}" @checked($profileSelected)>
                             <label class="form-check-label fw-bold" for="profile-{{ $profile->uuid }}">{{ $profile->title }}</label>
 
                             @if($profile->limited)
@@ -118,6 +118,7 @@
             const input = document.getElementById('subject-input');
             const list = document.getElementById('subject-list');
             let timer = null;
+            let sequence = 0;
 
             function render(items) {
                 list.textContent = '';
@@ -149,12 +150,17 @@
             }
 
             function search() {
+                const current = ++sequence;
+
                 fetch(picker.dataset.searchUrl + '?q=' + encodeURIComponent(input.value.trim()), {
                     headers: {'Accept': 'application/json'}, credentials: 'same-origin'
                 }).then(function (response) {
                     return response.json();
-                }).then(render).catch(function () {
-                    list.style.display = 'none';
+                }).then(function (items) {
+                    // a slower answer to an older query must not replace the newer one
+                    if (current === sequence) { render(items); }
+                }).catch(function () {
+                    if (current === sequence) { list.style.display = 'none'; }
                 });
             }
 
@@ -171,7 +177,7 @@
             function syncMods() {
                 document.querySelectorAll('[data-mod-of]').forEach(function (mod) {
                     const box = document.querySelector('[data-profile-box="' + mod.dataset.modOf + '"]');
-                    const allowed = box && (box.checked || box.dataset.inherited === '1');
+                    const allowed = box && (box.checked || box.dataset.inherited === '1' || box.dataset.public === '1');
                     mod.disabled = !allowed;
                     if (!allowed) { mod.checked = false; }
                 });

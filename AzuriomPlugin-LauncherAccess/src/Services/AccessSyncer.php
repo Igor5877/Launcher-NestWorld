@@ -4,6 +4,7 @@ namespace Azuriom\Plugin\LauncherAccess\Services;
 
 use Azuriom\Models\User;
 use Azuriom\Plugin\LauncherAccess\Models\LedgerRow;
+use Azuriom\Plugin\LauncherAccess\Models\Profile;
 use Azuriom\Plugin\LauncherAccess\Models\Rule;
 use Azuriom\Plugin\LauncherAccess\Support\DesiredBuilder;
 use Azuriom\Plugin\LauncherAccess\Support\PermissionFormat;
@@ -59,11 +60,12 @@ class AccessSyncer
     public function syncAll(bool $dryRun = false): array
     {
         $rules = $this->rules();
+        $public = $this->publicProfiles();
         $desired = [];
         $warnings = [];
 
-        User::query()->select(['id', 'game_id', 'role_id'])->orderBy('id')->chunk(1000, function ($users) use (&$desired, $rules, &$warnings) {
-            $desired += DesiredBuilder::build($users->map->only(['id', 'game_id', 'role_id'])->all(), $rules, $this->maxLength, $warnings);
+        User::query()->select(['id', 'name', 'game_id', 'role_id'])->orderBy('id')->chunk(1000, function ($users) use (&$desired, $rules, $public, &$warnings) {
+            $desired += DesiredBuilder::build($users->map->only(['id', 'name', 'game_id', 'role_id'])->all(), $rules, $this->maxLength, $warnings, $public);
         });
 
         // players that vanished (deleted user, changed game_id) still have rows in the ledger
@@ -81,8 +83,8 @@ class AccessSyncer
     {
         $warnings = [];
         $desired = DesiredBuilder::build(
-            [['id' => $user->id, 'game_id' => $user->game_id, 'role_id' => $user->role_id]],
-            $this->rules(), $this->maxLength, $warnings
+            [['id' => $user->id, 'name' => $user->name, 'game_id' => $user->game_id, 'role_id' => $user->role_id]],
+            $this->rules(), $this->maxLength, $warnings, $this->publicProfiles()
         );
 
         $old = PermissionFormat::uuid($oldGameId);
@@ -97,11 +99,12 @@ class AccessSyncer
     public function syncRole(int $roleId): array
     {
         $rules = $this->rules();
+        $public = $this->publicProfiles();
         $desired = [];
         $warnings = [];
 
-        User::query()->where('role_id', $roleId)->select(['id', 'game_id', 'role_id'])->orderBy('id')->chunk(1000, function ($users) use (&$desired, $rules, &$warnings) {
-            $desired += DesiredBuilder::build($users->map->only(['id', 'game_id', 'role_id'])->all(), $rules, $this->maxLength, $warnings);
+        User::query()->where('role_id', $roleId)->select(['id', 'name', 'game_id', 'role_id'])->orderBy('id')->chunk(1000, function ($users) use (&$desired, $rules, $public, &$warnings) {
+            $desired += DesiredBuilder::build($users->map->only(['id', 'name', 'game_id', 'role_id'])->all(), $rules, $this->maxLength, $warnings, $public);
         });
 
         return $this->apply($desired) + ['warnings' => $warnings];
@@ -117,6 +120,14 @@ class AccessSyncer
         if ($uuid !== null) {
             $this->apply([$uuid => []]);
         }
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function publicProfiles(): array
+    {
+        return Profile::query()->where('limited', false)->pluck('uuid')->mapWithKeys(fn ($uuid) => [$uuid => true])->all();
     }
 
     /**

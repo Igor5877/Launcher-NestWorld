@@ -94,6 +94,12 @@ $d = DesiredBuilder::build([['id' => 1, 'game_id' => U1, 'role_id' => null]], [
     ['subject_type' => 'user', 'subject_id' => 1, 'resource_type' => 'mod', 'profile_uuid' => P1, 'mod_key' => 'sodium'],
 ], 100, $w);
 check('mod without profile is warned', in_array('mod_without_profile', array_column($w, 'type'), true));
+
+$w = [];
+DesiredBuilder::build([['id' => 1, 'game_id' => U1, 'role_id' => null]], [
+    ['subject_type' => 'user', 'subject_id' => 1, 'resource_type' => 'mod', 'profile_uuid' => P1, 'mod_key' => 'sodium'],
+], 100, $w, [P1 => true]);
+same('no warning when the profile is public', [], $w);
 same('mod row is still written', [F::modShow(P1, 'sodium')], $d[U1]);
 
 $w = [];

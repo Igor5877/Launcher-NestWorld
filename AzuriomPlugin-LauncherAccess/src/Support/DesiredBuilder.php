@@ -8,13 +8,14 @@ namespace Azuriom\Plugin\LauncherAccess\Support;
 final class DesiredBuilder
 {
     /**
-     * @param  array<int, array{id:int, game_id:?string, role_id:?int}>  $users
+     * @param  array<int, array{id:int, game_id:?string, role_id:?int, name?:string}>  $users
      * @param  array<int, array{subject_type:string, subject_id:int, resource_type:string, profile_uuid:string, mod_key:?string}>  $rules
      * @param  array<int, array{type:string, detail:string}>  $warnings  filled with problems worth showing to the admin
+     * @param  array<string, bool>  $publicProfiles  uuids of profiles everybody can use: a mod of such a profile needs no profile row
      * @return array<string, string[]> player uuid => permissions. Players with no rules are present with an empty
      *                                 list, so rows the plugin wrote earlier get removed
      */
-    public static function build(array $users, array $rules, int $maxLength, array &$warnings = []): array
+    public static function build(array $users, array $rules, int $maxLength, array &$warnings = [], array $publicProfiles = []): array
     {
         $byUser = [];
         $byRole = [];
@@ -58,7 +59,7 @@ final class DesiredBuilder
 
             if ($uuid === null) {
                 if (! empty($byUser[$user['id']]) || (! empty($user['role_id']) && ! empty($byRole[$user['role_id']]))) {
-                    $warnings[] = ['type' => 'no_game_id', 'detail' => (string) $user['id']];
+                    $warnings[] = ['type' => 'no_game_id', 'detail' => (string) ($user['name'] ?? $user['id'])];
                 }
 
                 continue;
@@ -82,8 +83,8 @@ final class DesiredBuilder
                 if ($entry['mod'] !== null) {
                     $permissions[PermissionFormat::modShow($entry['profile'], $entry['mod'])] = true;
 
-                    if (! isset($profiles[$entry['profile']])) {
-                        $warnings[] = ['type' => 'mod_without_profile', 'detail' => $user['id'].' '.$entry['profile']];
+                    if (! isset($profiles[$entry['profile']]) && ! isset($publicProfiles[$entry['profile']])) {
+                        $warnings[] = ['type' => 'mod_without_profile', 'detail' => ($user['name'] ?? $user['id']).' / '.$entry['profile']];
                     }
                 }
             }
