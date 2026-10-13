@@ -85,7 +85,9 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
     @Override
     public User getUserByUUID(UUID uuid) {
         try {
-            return queryUser(queryByUUIDSQL, uuid.toString().replace("-", ""));
+            // ids are stored as 32 hex digits (Minecraft/Azuriom) or as a dashed UUID depending on how the row was created
+            User user = queryUser(queryByUUIDSQL, uuid.toString().replace("-", ""));
+            return user != null ? user : queryUser(queryByUUIDSQL, uuid.toString());
         } catch (Exception e) {
             logger.error("SQL error", e);
             return null;
@@ -120,8 +122,12 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
         boolean minecraftAccess = context != null && server.config.protectHandler.allowGetAccessToken(context);
         var refreshToken = user.username.concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.username, user.password, server.keyAgreementManager.legacySalt));
         if (minecraftAccess) {
-            String minecraftAccessToken = SecurityHelper.randomStringToken();
-            updateAuth(user, minecraftAccessToken);
+            // Re-authorizing an existing session must not invalidate the Minecraft token of a running game
+            String minecraftAccessToken = user.getAccessToken();
+            if (minecraftAccessToken == null || minecraftAccessToken.isEmpty()) {
+                minecraftAccessToken = SecurityHelper.randomStringToken();
+                updateAuth(user, minecraftAccessToken);
+            }
             return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(expireSeconds), session);
         } else {
             return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(expireSeconds), session);
@@ -301,9 +307,16 @@ public abstract class AbstractSQLCoreProvider extends AuthCoreProvider implement
         getSQLConfig().close();
     }
 
+    /**
+     * Reads an id stored as 32 hex digits (Minecraft/Azuriom style) or as a regular dashed UUID.
+     */
     protected static UUID toUUID(String s) {
         if(s == null) return null;
-        return UUID.fromString(s.substring(0, 8) + "-" + s.substring(8, 12) + "-" + s.substring(12, 16) + "-" + s.substring(16, 20) + "-" + s.substring(20, 32));
+        s = s.trim();
+        if (s.length() == 32) {
+            return UUID.fromString(s.substring(0, 8) + "-" + s.substring(8, 12) + "-" + s.substring(12, 16) + "-" + s.substring(16, 20) + "-" + s.substring(20, 32));
+        }
+        return UUID.fromString(s);
     }
 
     protected SQLUser constructUser(ResultSet set) throws SQLException {

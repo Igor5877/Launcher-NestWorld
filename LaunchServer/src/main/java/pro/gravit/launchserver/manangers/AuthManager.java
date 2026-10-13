@@ -44,6 +44,9 @@ public class AuthManager {
                 .require("tokenType", "checkServer")
                 .verifyWith(server.keyAgreementManager.ecdsaPublicKey)
                 .build();
+        if (server.config != null && server.config.env != LauncherConfig.LauncherEnvironment.PROD) {
+            logger.warn("LaunchServer env is {}: the launcher signature check (\"Don't skip Launcher Update\") is NOT enforced for password logins. Set env to PROD in production", server.config.env);
+        }
     }
 
     public String newCheckServerToken(String serverName, String authId, boolean publicOnly) {
@@ -111,6 +114,7 @@ public class AuthManager {
                     throw new AuthException(AuthRequestEvent.OAUTH_TOKEN_INVALID);
                 }
                 User user = result.session().getUser();
+                checkReauth(context.client, context.pair, user);
                 context.client.coreObject = user;
                 context.client.sessionObject = result.session();
                 internalAuth(context.client, context.authType, context.pair, user.getUsername(), user.getUUID(), user.getPermissions(), result.isUsingOAuth());
@@ -130,6 +134,7 @@ public class AuthManager {
             }
             var session = result.session;
             var user = session.getUser();
+            checkReauth(context.client, context.pair, user);
             context.client.coreObject = user;
             context.client.sessionObject = session;
             internalAuth(context.client, context.authType, context.pair, user.getUsername(), user.getUUID(), user.getPermissions(), result.isUsingOAuth());
@@ -139,6 +144,35 @@ public class AuthManager {
             logger.error(e);
             throw new AuthException("Internal Auth Error");
         }
+    }
+
+    /**
+     * An already authorized connection may only be re-authorized as the same user of the same auth provider
+     * (token refresh, session restore). Switching to another user on the same connection would mix up the state
+     * (selected profile, permissions, properties) of two accounts.
+     */
+    static void checkReauth(Client client, AuthProviderPair pair, User user) throws AuthException {
+        if (!client.isAuth) return;
+        boolean same = Objects.equals(client.auth_id, pair.name)
+                && Objects.equals(client.uuid, user.getUUID())
+                && Objects.equals(client.username, user.getUsername());
+        if (!same) {
+            throw new AuthException("You are already logged in");
+        }
+    }
+
+    /**
+     * Drops the authorization of a connection (used when a hook rejects a user after a successful auth)
+     */
+    public void resetAuth(Client client) {
+        client.isAuth = false;
+        client.permissions = new ClientPermissions();
+        client.username = "";
+        client.uuid = null;
+        client.auth_id = null;
+        client.auth = null;
+        client.coreObject = null;
+        client.sessionObject = null;
     }
 
     /**

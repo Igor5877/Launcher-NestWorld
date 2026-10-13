@@ -5,6 +5,7 @@ import com.azuriom.azauth.exception.AuthException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.gravit.launcher.base.ClientPermissions;
+import pro.gravit.launcher.base.events.request.AuthRequestEvent;
 import pro.gravit.launcher.base.events.request.GetAvailabilityAuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
 import pro.gravit.launcher.base.request.auth.details.AuthPasswordDetails;
@@ -24,10 +25,12 @@ import pro.gravit.launchserver.socket.response.auth.AuthResponse;
 import pro.gravit.utils.helper.SecurityHelper;
 
 import java.io.IOException;
-import java.time.Clock;
-import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -37,6 +40,18 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     public MySQLCoreProvider sql;
     private transient AuthClient authClient;
     private transient boolean isDatabaseMode = false;
+
+    /**
+     * Every access token check is an HTTP request to the Azuriom site. Clients check/restore their session often
+     * (hourly refresh, reconnects, game start), so successful answers are remembered briefly.
+     */
+    private static final long VERIFY_CACHE_MILLIS = 30_000;
+    private static final long VERIFY_FAIL_CACHE_MILLIS = 10_000;
+    private static final int VERIFY_CACHE_MAX = 2000;
+    private transient final ConcurrentHashMap<String, CachedVerify> verifyCache = new ConcurrentHashMap<>();
+
+    private record CachedVerify(com.azuriom.azauth.model.User user, String error, long expiresAt) {
+    }
 
     // --- Внутрішні реалізації для офлайн-режиму ---
     private record OfflineUser(String username, UUID uuid, ClientPermissions permissions) implements User {
@@ -93,7 +108,8 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             logger.info("Azuriom provider: Database integration is ENABLED with HWID support.");
         } else {
             isDatabaseMode = false;
-            logger.warn("Azuriom provider: 'sql' section is not configured. Working WITHOUT database integration.");
+            logger.warn("Azuriom provider: 'sql' section is not configured. Working WITHOUT database integration: " +
+                    "joinServer/checkServer (ServerWrapper), token refresh and hardware features are unavailable.");
         }
     }
 
@@ -125,21 +141,80 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
     }
 
     private UserSession createOfflineSession(com.azuriom.azauth.model.User azuriomUser) {
-        User user = new OfflineUser(azuriomUser.getUsername(), azuriomUser.getUuid(), new ClientPermissions());
+        UUID uuid = azuriomUser.getUuid();
+        if (uuid == null) {
+            // Azuriom users created without a game id: use the same id Minecraft computes for offline players
+            uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + azuriomUser.getUsername()).getBytes(StandardCharsets.UTF_8));
+        }
+        User user = new OfflineUser(azuriomUser.getUsername(), uuid, new ClientPermissions());
         return new OfflineUserSession(user);
+    }
+
+    private static String sha256(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private com.azuriom.azauth.model.User verifyToken(String accessToken) throws AuthException {
+        String key = sha256(accessToken);
+        long now = System.currentTimeMillis();
+        CachedVerify cached = verifyCache.get(key);
+        if (cached != null && cached.expiresAt() > now) {
+            if (cached.user() != null) return cached.user();
+            throw new AuthException(cached.error());
+        }
+        if (verifyCache.size() > VERIFY_CACHE_MAX) {
+            verifyCache.values().removeIf(e -> e.expiresAt() <= now);
+            if (verifyCache.size() > VERIFY_CACHE_MAX) verifyCache.clear();
+        }
+        try {
+            var user = authClient.verify(accessToken);
+            verifyCache.put(key, new CachedVerify(user, null, now + VERIFY_CACHE_MILLIS));
+            return user;
+        } catch (AuthException e) {
+            // a rejected token (not a network failure, that is an IOException/RuntimeException) is remembered shortly too
+            verifyCache.put(key, new CachedVerify(null, String.valueOf(e.getMessage()), now + VERIFY_FAIL_CACHE_MILLIS));
+            throw e;
+        } catch (com.google.gson.JsonParseException e) {
+            // e.g. "uuid": null: the AzAuth library cannot read users that have no game id and throws a runtime exception
+            logger.error("Azuriom returned a user that cannot be read: {}", e.getMessage());
+            var failure = new AuthException("Unexpected answer of Azuriom", e);
+            verifyCache.put(key, new CachedVerify(null, failure.getMessage(), now + VERIFY_FAIL_CACHE_MILLIS));
+            throw failure;
+        }
+    }
+
+    /**
+     * Tokens issued by refreshAccessToken come from the SQL provider (our own JWT), not from Azuriom.
+     */
+    private UserSession sqlSessionByJwt(String accessToken) throws OAuthAccessTokenExpired {
+        if (!isDatabaseMode) return null;
+        return sql.getUserSessionByOAuthAccessToken(accessToken);
     }
     
     @Override
     public AuthManager.AuthReport reportFromOAuth(String accessToken, AuthResponse.AuthContext context) throws IOException {
         try {
-            com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
+            try {
+                if (sqlSessionByJwt(accessToken) != null) {
+                    // token from refreshAccessToken
+                    return sql.reportFromOAuth(accessToken, context);
+                }
+            } catch (OAuthAccessTokenExpired e) {
+                throw new pro.gravit.launchserver.auth.AuthException(AuthRequestEvent.OAUTH_TOKEN_EXPIRE);
+            }
+            com.azuriom.azauth.model.User azuriomUser = verifyToken(accessToken);
 
             boolean minecraftAccess = server.config.protectHandler.allowGetAccessToken(context);
 
             if (!isDatabaseMode) {
                 UserSession session = createOfflineSession(azuriomUser);
                 User user = session.getUser();
-                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
+                // no database: refresh tokens cannot be verified, so none is issued
+                String refreshToken = null;
 
                 if (minecraftAccess) {
                     String minecraftAccessToken = SecurityHelper.randomStringToken();
@@ -164,8 +239,13 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             var refreshToken = localUser.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(localUser.getUsername(), localUser.password, server.keyAgreementManager.legacySalt));
             
             if (minecraftAccess) {
-                String minecraftAccessToken = SecurityHelper.randomStringToken();
-                sql.updateAuth(localUser, minecraftAccessToken);
+                // Re-authorizing an existing session (reconnect, hourly refresh) must not invalidate the Minecraft
+                // token of the game that is already running, so the stored one is reused
+                String minecraftAccessToken = localUser.getAccessToken();
+                if (minecraftAccessToken == null || minecraftAccessToken.isEmpty()) {
+                    minecraftAccessToken = SecurityHelper.randomStringToken();
+                    sql.updateAuth(localUser, minecraftAccessToken);
+                }
                 return AuthManager.AuthReport.ofOAuthWithMinecraft(minecraftAccessToken, accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
             } else {
                 return AuthManager.AuthReport.ofOAuth(accessToken, refreshToken, SECONDS.toMillis(sql.expireSeconds), session);
@@ -183,8 +263,12 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         if (authClient == null) {
             throw new OAuthAccessTokenExpired("Azuriom provider is not initialized");
         }
+        UserSession jwtSession = sqlSessionByJwt(accessToken);
+        if (jwtSession != null) {
+            return jwtSession;
+        }
         try {
-            com.azuriom.azauth.model.User azuriomUser = authClient.verify(accessToken);
+            com.azuriom.azauth.model.User azuriomUser = verifyToken(accessToken);
 
             if (!isDatabaseMode) {
                 return createOfflineSession(azuriomUser);
@@ -245,7 +329,8 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             }
 
             if (!result.isSuccess()) {
-                throw new pro.gravit.launchserver.auth.AuthException("Authentication failed: " + result.toString());
+                logger.debug("Azuriom rejected the login of '{}': {}", login, result);
+                throw new pro.gravit.launchserver.auth.AuthException("Authentication failed");
             }
 
             com.azuriom.azauth.model.User azuriomUser = result.getSuccessResult();
@@ -254,7 +339,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
                 UserSession session = createOfflineSession(azuriomUser);
                 User user = session.getUser();
                 var accessToken = azuriomUser.getAccessToken();
-                var refreshToken = user.getUsername().concat(".").concat(LegacySessionHelper.makeRefreshTokenFromPassword(user.getUsername(), "mockpassword", server.keyAgreementManager.legacySalt));
+                String refreshToken = null; // no database: refresh tokens cannot be verified
 
                 if (minecraftAccess) {
                     String minecraftAccessToken = SecurityHelper.randomStringToken();
@@ -289,6 +374,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
         } catch (AuthException e) {
             throw new pro.gravit.launchserver.auth.AuthException(e.getMessage(), e);
+        } catch (com.google.gson.JsonParseException e) {
+            logger.error("Azuriom returned a user that cannot be read: {}", e.getMessage());
+            throw new pro.gravit.launchserver.auth.AuthException("Unexpected answer of Azuriom");
         }
     }
 
@@ -337,7 +425,7 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
         if (user == null) {
             return null;
         }
-        if (user.getUsername().equals(username) && user.getServerId().equals(serverID)) {
+        if (user.getUsername().equals(username) && serverID != null && serverID.equals(user.getServerId())) {
             return sql.createSession(user);
         }
         return null;
@@ -380,12 +468,9 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
 
         // Перевіряємо accessToken
         String storedToken = user.getAccessToken();
-        if (storedToken == null || !storedToken.equals(accessToken)) {
-            logger.warn("joinServer: accessToken mismatch for user '{}'. " +
-                    "Stored: '{}', received: '{}'",
-                    username,
-                    storedToken != null ? storedToken.substring(0, Math.min(8, storedToken.length())) + "..." : "null",
-                    accessToken != null ? accessToken.substring(0, Math.min(8, accessToken.length())) + "..." : "null");
+        if (storedToken == null || accessToken == null
+                || !MessageDigest.isEqual(storedToken.getBytes(StandardCharsets.UTF_8), accessToken.getBytes(StandardCharsets.UTF_8))) {
+            logger.warn("joinServer: accessToken mismatch for user '{}'", username);
             return false;
         }
 

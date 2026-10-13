@@ -26,12 +26,24 @@ public class WhitelistComponent extends Component implements AutoCloseable, Reco
     public void init(LaunchServer launchServer) {
         this.server = launchServer;
         this.server.authHookManager.preHook.registerHook(this::hookAuth);
+        this.server.authHookManager.postHook.registerHook(this::hookPostAuth);
         this.server.authHookManager.joinServerHook.registerHook(this::hookJoin);
     }
 
     public boolean hookAuth(AuthResponse.AuthContext context, Client client) throws HookException {
-        if (enabled) {
+        // OAuth authorization has no login yet: it is checked by username in hookPostAuth
+        if (enabled && context.login != null) {
             if (!whitelist.contains(context.login)) {
+                throw new HookException(message);
+            }
+        }
+        return false;
+    }
+
+    public boolean hookPostAuth(AuthResponse.AuthContext context, Client client) throws HookException {
+        if (enabled) {
+            boolean allowed = whitelist.contains(client.username) || (context.login != null && whitelist.contains(context.login));
+            if (!allowed) {
                 throw new HookException(message);
             }
         }
@@ -50,6 +62,7 @@ public class WhitelistComponent extends Component implements AutoCloseable, Reco
     @Override
     public void close() {
         this.server.authHookManager.preHook.unregisterHook(this::hookAuth);
+        this.server.authHookManager.postHook.unregisterHook(this::hookPostAuth);
         this.server.authHookManager.joinServerHook.unregisterHook(this::hookJoin);
     }
 
