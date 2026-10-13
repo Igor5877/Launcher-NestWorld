@@ -2,6 +2,7 @@ package pro.gravit.launcher.base.request.websockets;
 
 import pro.gravit.launcher.base.events.RequestEvent;
 import pro.gravit.launcher.base.events.request.ErrorRequestEvent;
+import pro.gravit.launcher.base.events.request.SetProfileRequestEvent;
 import pro.gravit.launcher.base.request.Request;
 import pro.gravit.launcher.base.request.RequestException;
 import pro.gravit.launcher.base.request.RequestService;
@@ -72,6 +73,9 @@ public class StdWebSocketService extends ClientWebSocketService implements Reque
 
     @SuppressWarnings({"unchecked"})
     public <T extends WebSocketEvent> void eventHandle(T webSocketEvent) {
+        if (webSocketEvent instanceof SetProfileRequestEvent setProfileEvent && setProfileEvent.newProfile != null) {
+            Request.rememberSelectedProfile(setProfileEvent.newProfile);
+        }
         if (webSocketEvent instanceof RequestEvent event) {
             if (event.requestUUID == null) {
                 LogHelper.warning("Request event type %s.requestUUID is null", event.getType() == null ? "null" : event.getType());
@@ -96,6 +100,16 @@ public class StdWebSocketService extends ClientWebSocketService implements Reque
         }
         //
         processEventHandlers(webSocketEvent);
+    }
+
+    @Override
+    void onDisconnect(int statusCode, String reason) {
+        super.onDisconnect(statusCode, reason);
+        // Nobody will ever answer the requests that were in flight: fail them instead of hanging forever
+        for (var future : futureMap.values()) {
+            future.completeExceptionally(new RequestException("Connection closed"));
+        }
+        futureMap.clear();
     }
 
     public <T extends WebSocketEvent> CompletableFuture<T> request(Request<T> request) throws IOException {

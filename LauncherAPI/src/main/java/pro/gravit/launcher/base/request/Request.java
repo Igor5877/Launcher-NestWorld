@@ -5,8 +5,10 @@ import pro.gravit.launcher.base.events.request.AuthRequestEvent;
 import pro.gravit.launcher.base.events.request.CurrentUserRequestEvent;
 import pro.gravit.launcher.base.events.request.RefreshTokenRequestEvent;
 import pro.gravit.launcher.base.events.request.RestoreRequestEvent;
+import pro.gravit.launcher.base.profiles.ClientProfile;
 import pro.gravit.launcher.base.request.auth.RefreshTokenRequest;
 import pro.gravit.launcher.base.request.auth.RestoreRequest;
+import pro.gravit.launcher.base.request.auth.SetProfileRequest;
 import pro.gravit.launcher.base.request.websockets.StdWebSocketService;
 import pro.gravit.launcher.base.request.websockets.WebSocketRequest;
 import pro.gravit.utils.helper.LogHelper;
@@ -30,6 +32,7 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
     private static volatile long tokenExpiredTime;
     private static volatile ScheduledExecutorService executorService;
     private static volatile boolean autoRefreshRunning;
+    private static volatile ClientProfile selectedProfile;
     @LauncherNetworkAPI
     public final UUID requestUUID = UUID.randomUUID();
     private transient final AtomicBoolean started = new AtomicBoolean(false);
@@ -152,10 +155,30 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
         return oauth == null ? null : oauth.refreshToken;
     }
 
+    /**
+     * Remembers the profile the server confirmed with setProfile. The selection lives in the server-side connection
+     * object, so it is lost whenever the connection is re-opened and has to be applied again by {@link #reconnect()}.
+     */
+    public static void rememberSelectedProfile(ClientProfile profile) {
+        selectedProfile = profile;
+    }
+
+    public static ClientProfile getSelectedProfile() {
+        return selectedProfile;
+    }
+
     public static void reconnect() throws Exception {
 
         getRequestService().open();
         restore();
+        ClientProfile profile = selectedProfile;
+        if (profile != null) {
+            try {
+                new SetProfileRequest(profile).request();
+            } catch (Exception e) {
+                LogHelper.warning("Failed to select profile %s after reconnect: %s", profile.getTitle(), e.getMessage());
+            }
+        }
     }
 
     public static RequestRestoreReport restore() throws Exception {
@@ -193,6 +216,8 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
             }
         }
 
+        boolean authenticated = false;
+        CurrentUserRequestEvent.UserInfo authUserInfo = null;
         if (oauth != null) {
             if (refreshOnly && !refreshed && getExpiredExtendedTokens().isEmpty()) {
                 return new RequestRestoreReport(refreshed, null, null);
@@ -210,9 +235,10 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
                         userInfo.playerProfile = authEvent.playerProfile;
                         userInfo.permissions = authEvent.permissions;
                     }
-                    if (getExpiredExtendedTokens().isEmpty()) {
-                        return new RequestRestoreReport(refreshed, null, userInfo);
-                    }
+                    // The connection is authorized now, but extended tokens (e.g. the launcher signature check)
+                    // are only delivered by a restore request, so they still have to be sent below
+                    authenticated = true;
+                    authUserInfo = userInfo;
                 } catch (Exception e) {
                     if (Objects.equals(e.getMessage(), AuthRequestEvent.OAUTH_TOKEN_INVALID) || Objects.equals(e.getMessage(), AuthRequestEvent.OAUTH_TOKEN_EXPIRE)) {
                         // Normal expired
@@ -225,7 +251,13 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
 
         // Fallback to old restore request
         RestoreRequest request;
-        if (oauth != null) {
+        if (authenticated) {
+            Map<String, String> tokens = refreshOnly ? getExpiredExtendedTokens() : getStringExtendedTokens();
+            if (tokens == null || tokens.isEmpty()) {
+                return new RequestRestoreReport(refreshed, null, authUserInfo);
+            }
+            request = new RestoreRequest(authId, null, tokens, false);
+        } else if (oauth != null) {
             request = new RestoreRequest(authId, oauth.accessToken, refreshOnly ? getExpiredExtendedTokens() : getStringExtendedTokens(), needUserInfo);
         } else {
             request = new RestoreRequest(authId, null, refreshOnly ? getExpiredExtendedTokens() : getStringExtendedTokens(), false);
@@ -246,7 +278,7 @@ public abstract class Request<R extends WebSocketEvent> implements WebSocketRequ
             }
             invalidTokens = event.invalidTokens;
         }
-        return new RequestRestoreReport(refreshed, invalidTokens, event.userInfo);
+        return new RequestRestoreReport(refreshed, invalidTokens, event.userInfo != null ? event.userInfo : authUserInfo);
     }
 
     private synchronized static Map<String, String> makeNewTokens(Collection<String> keys) {
