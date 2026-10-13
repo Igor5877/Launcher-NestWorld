@@ -69,6 +69,9 @@ foreach (['*', 'launchserver.*', 'launchserver.profile.*.show', 'launchserver.pr
 
 check('fits', F::fits(str_repeat('a', 100)) && ! F::fits(str_repeat('a', 101)));
 
+same('table uuid dashless', str_replace('-', '', U1), F::tableUuid(U1, 'dashless'));
+same('table uuid dashed', U1, F::tableUuid(U1, 'dashed'));
+
 // ---- desired ------------------------------------------------------------------------------------------
 $users = [
     ['id' => 1, 'game_id' => str_replace('-', '', U1), 'role_id' => 5],

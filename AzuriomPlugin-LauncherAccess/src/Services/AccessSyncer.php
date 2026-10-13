@@ -29,7 +29,12 @@ class AccessSyncer
         private readonly string $uuidColumn,
         private readonly string $permissionColumn,
         private readonly int $maxLength = PermissionFormat::DEFAULT_MAX_LENGTH,
+        private readonly string $uuidFormat = 'auto',
     ) {
+        if (! in_array($uuidFormat, ['auto', 'dashless', 'dashed'], true)) {
+            throw new \InvalidArgumentException('Invalid uuid format: '.$uuidFormat);
+        }
+
         foreach ([$table, $uuidColumn, $permissionColumn] as $identifier) {
             if (! self::isIdentifier($identifier)) {
                 throw new \InvalidArgumentException('Invalid table or column name: '.$identifier);
@@ -49,7 +54,58 @@ class AccessSyncer
             (string) setting('launcheraccess.uuid_column', 'uuid'),
             (string) setting('launcheraccess.permission_column', 'name'),
             (int) setting('launcheraccess.max_length', PermissionFormat::DEFAULT_MAX_LENGTH),
+            (string) setting('launcheraccess.uuid_format', 'auto'),
         );
+    }
+
+    private ?string $resolvedFormat = null;
+
+    /**
+     * "dashless" or "dashed": how player uuids are spelled in user_permissions.
+     * auto: the way users.game_id is stored (LaunchServer finds the rows by the same text).
+     */
+    public function uuidFormat(): string
+    {
+        if ($this->uuidFormat !== 'auto') {
+            return $this->uuidFormat;
+        }
+
+        return $this->resolvedFormat ??= $this->detectFormat();
+    }
+
+    private function detectFormat(): string
+    {
+        $row = User::query()->whereNotNull('game_id')
+            ->selectRaw('SUM(CASE WHEN LENGTH(game_id) = 32 THEN 1 ELSE 0 END) AS dashless, COUNT(*) AS total')->first();
+
+        $total = (int) ($row->total ?? 0);
+
+        // no players yet: Azuriom's Minecraft games store the id without dashes
+        return $total === 0 || (int) $row->dashless * 2 >= $total ? 'dashless' : 'dashed';
+    }
+
+    /**
+     * Re-keys canonical (dashed) uuids to the spelling of the table. Rows a plugin version wrote earlier in the
+     * other spelling are cleaned up too: the other spelling is added with an empty wish list.
+     *
+     * @param  array<string, string[]>  $desired
+     * @return array<string, string[]>
+     */
+    private function forTable(array $desired): array
+    {
+        $format = $this->uuidFormat();
+        $other = $format === 'dashless' ? 'dashed' : 'dashless';
+        $result = [];
+
+        foreach ($desired as $uuid => $permissions) {
+            $result[PermissionFormat::tableUuid($uuid, $format)] = $permissions;
+        }
+
+        foreach ($desired as $uuid => $permissions) {
+            $result[PermissionFormat::tableUuid($uuid, $other)] ??= [];
+        }
+
+        return $result;
     }
 
     /**
@@ -67,6 +123,8 @@ class AccessSyncer
         User::query()->select(['id', 'name', 'game_id', 'role_id'])->orderBy('id')->chunk(1000, function ($users) use (&$desired, $rules, $public, &$warnings) {
             $desired += DesiredBuilder::build($users->map->only(['id', 'name', 'game_id', 'role_id'])->all(), $rules, $this->maxLength, $warnings, $public);
         });
+
+        $desired = $this->forTable($desired);
 
         // players that vanished (deleted user, changed game_id) still have rows in the ledger
         foreach (LedgerRow::query()->distinct()->pluck('player_uuid') as $uuid) {
@@ -93,7 +151,7 @@ class AccessSyncer
             $desired[$old] = [];
         }
 
-        return $this->apply($desired) + ['warnings' => $warnings];
+        return $this->apply($this->forTable($desired)) + ['warnings' => $warnings];
     }
 
     public function syncRole(int $roleId): array
@@ -107,7 +165,7 @@ class AccessSyncer
             $desired += DesiredBuilder::build($users->map->only(['id', 'name', 'game_id', 'role_id'])->all(), $rules, $this->maxLength, $warnings, $public);
         });
 
-        return $this->apply($desired) + ['warnings' => $warnings];
+        return $this->apply($this->forTable($desired)) + ['warnings' => $warnings];
     }
 
     /**
@@ -118,7 +176,7 @@ class AccessSyncer
         $uuid = PermissionFormat::uuid($gameId);
 
         if ($uuid !== null) {
-            $this->apply([$uuid => []]);
+            $this->apply($this->forTable([$uuid => []]));
         }
     }
 

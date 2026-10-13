@@ -50,6 +50,19 @@ final class PermissionFormat
         return mb_strtolower($name, 'UTF-8');
     }
 
+    /**
+     * LaunchServer looks permissions up by the same uuid text it finds in the users table, so the rows must use
+     * that spelling: Azuriom's Minecraft games store game_id without dashes, and then user_permissions.uuid has to
+     * be without dashes too (a dashed uuid would simply never match).
+     *
+     * @param  string  $dashed  canonical uuid, see {@see uuid()}
+     * @param  string  $format  "dashless" or "dashed"
+     */
+    public static function tableUuid(string $dashed, string $format): string
+    {
+        return $format === 'dashless' ? str_replace('-', '', $dashed) : $dashed;
+    }
+
     public static function profileShow(string $profileUuid): string
     {
         return "launchserver.profile.$profileUuid.show";

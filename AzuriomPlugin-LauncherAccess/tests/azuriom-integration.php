@@ -71,9 +71,15 @@ function dashed(string $gameId): string
     return substr($gameId, 0, 8).'-'.substr($gameId, 8, 4).'-'.substr($gameId, 12, 4).'-'.substr($gameId, 16, 4).'-'.substr($gameId, 20);
 }
 
+/** user_permissions.uuid is spelled like users.game_id (without dashes): LaunchServer looks the rows up by that text */
+function tbl(string $gameId): string
+{
+    return strtolower($gameId);
+}
+
 function perms(string $gameId): array
 {
-    $rows = DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->where('uuid', dashed($gameId))->pluck('name')->all();
+    $rows = DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->where('uuid', tbl($gameId))->pluck('name')->all();
     sort($rows);
 
     return $rows;
@@ -212,8 +218,8 @@ same('steve got the rows LaunchServer reads', [
     'launcher.runtime.optionals.'.P1.'.sodium.show', 'launchserver.profile.'.P1.'.enter', 'launchserver.profile.'.P1.'.show',
 ], perms($steve->game_id));
 same('alex got nothing', [], perms($alex->game_id));
-same('ledger holds the three rows', 3, LedgerRow::query()->where('player_uuid', dashed($steve->game_id))->count());
-same('uuid in the table has dashes and lower case', dashed($steve->game_id), DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->value('uuid'));
+same('ledger holds the three rows', 3, LedgerRow::query()->where('player_uuid', tbl($steve->game_id))->count());
+same('uuid in the table is spelled like game_id (no dashes)', tbl($steve->game_id), DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->value('uuid'));
 
 // unknown profile / mod / injection attempts are ignored
 http('POST', '/admin/launcheraccess', [
@@ -227,7 +233,7 @@ same('only known resources are accepted', $expected, perms($steve->game_id));
 check('no wildcard rows anywhere', DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->where('name', 'like', '%*%')->count() === 0);
 
 // ---- a manual row survives ------------------------------------------------------------------------------
-DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->insert(['uuid' => dashed($steve->game_id), 'name' => 'launcher.debug.test']);
+DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->insert(['uuid' => tbl($steve->game_id), 'name' => 'launcher.debug.test']);
 http('POST', '/admin/launcheraccess', ['subject' => 'user:'.$steve->id, 'profiles' => [P1]], $admin);
 same('mod revoked, profile kept, manual row kept', [
     'launcher.debug.test', 'launchserver.profile.'.P1.'.enter', 'launchserver.profile.'.P1.'.show',
@@ -263,7 +269,7 @@ same('new game id has the rows', 3, count(perms($new)));
 
 $alex->delete();
 same('deleted player is cleaned', [], perms($new));
-same('and so is his ledger', 0, LedgerRow::query()->where('player_uuid', dashed($new))->count());
+same('and so is his ledger', 0, LedgerRow::query()->where('player_uuid', tbl($new))->count());
 
 // ---- players without game id ----------------------------------------------------------------------------
 http('POST', '/admin/launcheraccess', ['subject' => 'user:'.$nogame->id, 'profiles' => [P1]], $admin);
@@ -276,7 +282,7 @@ $syncer = AccessSyncer::fromSettings();
 $report = $syncer->syncAll();
 same('a full sync right after is a no-op', [0, 0], [$report['insert'], $report['delete']]);
 
-DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->where('uuid', dashed($nogame->game_id))->delete();
+DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->where('uuid', tbl($nogame->game_id))->delete();
 $dry = $syncer->syncAll(true);
 same('dry run reports the missing rows', 2, $dry['insert']);
 same('dry run writes nothing', [], perms($nogame->game_id));
@@ -291,6 +297,34 @@ Rule::query()->where('subject_type', 'user')->where('subject_id', $nogame->id)->
 $report = $syncer->syncAll();
 same('rows of a vanished rule are removed by the full sync', [0, 2], [$report['insert'], $report['delete']]);
 same('nogame has nothing again', [], perms($nogame->game_id));
+
+// ---- uuid spelling: the rows must be found by LaunchServer ----------------------------------------------
+// An earlier version wrote dashed uuids while LaunchServer looks them up as stored in users.game_id (no dashes):
+// nobody saw the profiles. Such leftover rows are cleaned and the right ones written.
+$wrongUuid = dashed($nogame->game_id);
+$wrongPerm = 'launchserver.profile.'.P1.'.show';
+DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->insert(['uuid' => $wrongUuid, 'name' => $wrongPerm]);
+LedgerRow::query()->create(['player_uuid' => $wrongUuid, 'permission' => $wrongPerm]);
+$rule = Rule::query()->create(['subject_type' => 'user', 'subject_id' => $nogame->id, 'resource_type' => 'profile', 'profile_uuid' => P1, 'mod_key' => '']);
+AccessSyncer::fromSettings()->syncUser($nogame);
+same('leftover dashed rows are removed', 0, DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->where('uuid', $wrongUuid)->count());
+same('and the rows LaunchServer can find are written', ['launchserver.profile.'.P1.'.enter', 'launchserver.profile.'.P1.'.show'], perms($nogame->game_id));
+same('auto format is detected as dashless', 'dashless', AccessSyncer::fromSettings()->uuidFormat());
+
+// the other spelling can be chosen on the settings page
+http('POST', '/admin/launcheraccess/settings', ['table' => 'user_permissions', 'uuid_column' => 'uuid', 'permission_column' => 'name', 'max_length' => 100, 'uuid_format' => 'dashed', 'auto_sync' => 'on'], $admin);
+same('dashed format stored', 'dashed', DB::table('settings')->where('name', 'launcheraccess.uuid_format')->value('value'));
+$report = AccessSyncer::fromSettings()->syncAll();
+same('switching the format moves the rows', 2, count(DB::connection(AccessSyncer::CONNECTION)->table('user_permissions')->where('uuid', dashed($nogame->game_id))->pluck('name')->all()));
+same('and nothing is left in the old spelling', [], perms($nogame->game_id));
+http('POST', '/admin/launcheraccess/settings', ['table' => 'user_permissions', 'uuid_column' => 'uuid', 'permission_column' => 'name', 'max_length' => 100, 'uuid_format' => 'bogus'], $admin);
+same('an unknown format is refused', 'dashed', DB::table('settings')->where('name', 'launcheraccess.uuid_format')->value('value'));
+http('POST', '/admin/launcheraccess/settings', ['table' => 'user_permissions', 'uuid_column' => 'uuid', 'permission_column' => 'name', 'max_length' => 100, 'uuid_format' => 'auto', 'auto_sync' => 'on'], $admin);
+AccessSyncer::fromSettings()->syncAll();
+same('back to automatic: dashless again', ['launchserver.profile.'.P1.'.enter', 'launchserver.profile.'.P1.'.show'], perms($nogame->game_id));
+Rule::query()->whereKey($rule->id)->delete();
+AccessSyncer::fromSettings()->syncAll();
+DB::table('settings')->where('name', 'like', 'launcheraccess.%')->delete(); // the settings section below starts from nothing
 
 // ---- settings -------------------------------------------------------------------------------------------
 $bad = http('POST', '/admin/launcheraccess/settings', [

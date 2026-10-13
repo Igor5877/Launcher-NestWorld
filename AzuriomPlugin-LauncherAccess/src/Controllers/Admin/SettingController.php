@@ -26,6 +26,8 @@ class SettingController extends Controller
             'permissionColumn' => setting('launcheraccess.permission_column', 'name'),
             'maxLength' => (int) setting('launcheraccess.max_length', 100),
             'autoSync' => (bool) setting('launcheraccess.auto_sync', true),
+            'uuidFormat' => (string) setting('launcheraccess.uuid_format', 'auto'),
+            'detectedFormat' => AccessSyncer::fromSettings()->uuidFormat(),
             'profilesCount' => Profile::query()->count(),
             'modsCount' => Mod::query()->count(),
             'rulesCount' => Rule::query()->count(),
@@ -41,6 +43,7 @@ class SettingController extends Controller
             'uuid_column' => ['required', 'regex:/^[A-Za-z0-9_]{1,64}$/D'],
             'permission_column' => ['required', 'regex:/^[A-Za-z0-9_]{1,64}$/D'],
             'max_length' => ['required', 'integer', 'min:40', 'max:255'],
+            'uuid_format' => ['nullable', 'in:auto,dashless,dashed'],
         ]);
 
         // the table must exist and have both columns, otherwise nothing can be written
@@ -56,6 +59,7 @@ class SettingController extends Controller
             'launcheraccess.uuid_column' => $data['uuid_column'],
             'launcheraccess.permission_column' => $data['permission_column'],
             'launcheraccess.max_length' => $data['max_length'],
+            'launcheraccess.uuid_format' => $data['uuid_format'] ?? 'auto',
             'launcheraccess.auto_sync' => $request->has('auto_sync') ? '1' : '0',
         ]);
 

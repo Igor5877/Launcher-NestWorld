@@ -54,6 +54,16 @@
                     </div>
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label" for="uuid_format">{{ trans('launcheraccess::admin.settings.uuid_format') }}</label>
+                    <select class="form-select" id="uuid_format" name="uuid_format">
+                        @foreach(['auto', 'dashless', 'dashed'] as $format)
+                            <option value="{{ $format }}" @selected(old('uuid_format', $uuidFormat) === $format)>{{ trans('launcheraccess::admin.settings.uuid_format_'.$format) }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-text">{{ trans('launcheraccess::admin.settings.uuid_format_help', ['format' => trans('launcheraccess::admin.settings.uuid_format_'.$detectedFormat)]) }}</div>
+                </div>
+
                 <div class="form-check form-switch mb-3">
                     <input type="checkbox" class="form-check-input" id="auto_sync" name="auto_sync" @checked(old('auto_sync', $autoSync))>
                     <label class="form-check-label" for="auto_sync">{{ trans('launcheraccess::admin.settings.auto_sync') }}</label>
