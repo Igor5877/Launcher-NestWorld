@@ -10,9 +10,10 @@ import pro.gravit.launcher.base.modules.LauncherModuleInfo;
 import pro.gravit.launchserver.LaunchServer;
 import pro.gravit.launchserver.auth.AuthProviderPair;
 import pro.gravit.launchserver.auth.core.AzuriomCoreProvider;
-import pro.gravit.launchserver.command.Command;
 import pro.gravit.launchserver.modules.events.LaunchServerFullInitEvent;
 import pro.gravit.utils.Version;
+import pro.gravit.utils.command.Command;
+import pro.gravit.utils.command.CommandHandler;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -45,6 +46,7 @@ public class AccessExportModule extends LauncherModule {
     private List<CatalogRows.Profile> lastExported;
     private long lastExportAt;
     private boolean noDatabaseReported;
+    private String lastProblem;
 
     public AccessExportModule() {
         super(new LauncherModuleInfo(MODULE_NAME, MODULE_VERSION));
@@ -71,7 +73,7 @@ public class AccessExportModule extends LauncherModule {
             return;
         }
 
-        server.commandHandler.registerCommand("exportprofiles", new Command(server) {
+        registerCommand("exportprofiles", new Command() {
             @Override
             public String getArgsDescription() {
                 return null;
@@ -98,6 +100,19 @@ public class AccessExportModule extends LauncherModule {
         }, 15, interval, TimeUnit.SECONDS);
 
         logger.info("AccessExportModule started (every {} s)", interval);
+    }
+
+    /**
+     * The type of LaunchServer.commandHandler differs between LaunchServer builds, so it is read by name:
+     * the module then works with both.
+     */
+    private void registerCommand(String name, Command command) {
+        try {
+            Object handler = LaunchServer.class.getField("commandHandler").get(server);
+            ((CommandHandler) handler).registerCommand(name, command);
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            logger.warn("AccessExportModule: cannot register the command '{}' ({}), the export still runs on schedule", name, e.toString());
+        }
     }
 
     private synchronized void export(boolean force) {
@@ -128,13 +143,20 @@ public class AccessExportModule extends LauncherModule {
             if (writer.write(connection, rows)) {
                 lastExported = rows;
                 lastExportAt = now;
+                lastProblem = null;
                 int mods = rows.stream().mapToInt(p -> p.mods().size()).sum();
                 logger.info("AccessExportModule: exported {} profiles and {} mods", rows.size(), mods);
                 problems.forEach(logger::warn);
             }
         } catch (Exception e) {
-            // typically: the plugin is not installed yet (tables missing). Try again later, the message says what to check
-            logger.error("AccessExportModule: cannot write the catalog ({}). Is the Azuriom plugin \"Launcher Access\" installed and table_prefix correct?", e.getMessage());
+            // typically: the plugin is not installed yet (tables missing). Tell once per distinct problem, then retry quietly
+            String problem = String.valueOf(e.getMessage());
+            if (!problem.equals(lastProblem)) {
+                lastProblem = problem;
+                logger.error("AccessExportModule: cannot write the catalog ({}). Is the Azuriom plugin \"Launcher Access\" installed and table_prefix correct? Retrying every {} s", problem, Math.max(10, config.intervalSeconds));
+            } else {
+                logger.debug("AccessExportModule: still cannot write the catalog: {}", problem);
+            }
         }
     }
 
