@@ -8,6 +8,7 @@ include 'LauncherStart'
 include 'ServerWrapper'
 include 'LaunchServer'
 include 'LaunchServer-IslandModule'
+include 'LaunchServer-AccessExportModule'
 // 'modules' is a git submodule (see .gitmodules): a clone without --recursive must still be able to build the core
 if (file('modules').isDirectory()) {
     include 'modules'
