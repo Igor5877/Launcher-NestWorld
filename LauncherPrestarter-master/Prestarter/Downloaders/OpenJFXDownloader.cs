@@ -46,16 +46,23 @@ namespace Prestarter.Downloaders
             reporter.SetStatus(string.Format(I18n.DownloadingStatus, name));
             reporter.SetProgress(0);
             reporter.SetProgressBarState(ProgressBarState.Progress);
-            using (var file = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            try
             {
-                PrestarterCore.SharedHttpClient.DownloadWithHash(url, checksum, SHA256.Create(),
-                    file, reporter.SetProgress);
-            }
+                using (var file = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    PrestarterCore.SharedHttpClient.DownloadWithHash(url, checksum, SHA256.Create(),
+                        file, reporter.SetProgress);
+                }
 
-            reporter.SetProgressBarState(ProgressBarState.Marqee);
-            reporter.SetStatus(string.Format(I18n.UnpackingStatus, name));
-            DownloaderHelper.UnpackZip(zipPath, javaPath, true);
-            File.Delete(zipPath);
+                reporter.SetProgressBarState(ProgressBarState.Marqee);
+                reporter.SetStatus(string.Format(I18n.UnpackingStatus, name));
+                DownloaderHelper.UnpackZip(zipPath, javaPath, true);
+            }
+            finally
+            {
+                // never keep (or unpack later) an archive that failed the checksum
+                File.Delete(zipPath);
+            }
         }
 
         public string GetName()

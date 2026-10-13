@@ -29,7 +29,8 @@ namespace Prestarter.Downloaders
             var downloadUrl = ((parsed as List<object>)?[0] as Dictionary<string, object>)?["downloadUrl"] as string;
             if (downloadUrl == null) throw new Exception(I18n.ParsingResponseError);
 
-            var zipPath = Path.Combine(javaPath, "java.zip");
+            // the archive lives next to the runtime directory: the old runtime is deleted before unpacking
+            var zipPath = javaPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + ".java.zip";
             reporter.SetStatus(string.Format(I18n.DownloadingStatus, name));
             reporter.SetProgress(0);
             reporter.SetProgressBarState(ProgressBarState.Progress);
@@ -39,16 +40,22 @@ namespace Prestarter.Downloaders
             }
 
             reporter.SetProgressBarState(ProgressBarState.Marqee);
-            if (File.Exists(javaPath))
+            try
             {
-                reporter.SetStatus(I18n.DeletingOldJavaStatus);
-                Directory.Delete(javaPath, true);
-            }
+                if (Directory.Exists(javaPath))
+                {
+                    reporter.SetStatus(I18n.DeletingOldJavaStatus);
+                    Directory.Delete(javaPath, true);
+                }
 
-            reporter.SetStatus(string.Format(I18n.UnpackingStatus, name));
-            Directory.CreateDirectory(javaPath);
-            DownloaderHelper.UnpackZip(zipPath, javaPath, true);
-            File.Delete(zipPath);
+                reporter.SetStatus(string.Format(I18n.UnpackingStatus, name));
+                Directory.CreateDirectory(javaPath);
+                DownloaderHelper.UnpackZip(zipPath, javaPath, true);
+            }
+            finally
+            {
+                File.Delete(zipPath);
+            }
         }
 
         public string GetName()
