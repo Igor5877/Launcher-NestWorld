@@ -8,7 +8,7 @@ import pro.gravit.launchserver.components.CrashReportComponent;
 import pro.gravit.launchserver.socket.Client;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -50,55 +50,56 @@ public class CrashReportResponse extends SimpleResponse {
             return;
         }
         
-        // Перевіряємо rate limiting
-        if (!crashComponent.canUserSendReport(username)) {
-            sendResult(new CrashReportRequestEvent(false, "Rate limit exceeded"));
+        // Валідуємо розмір файлу (у байтах, а не в символах)
+        if (content == null) {
+            sendResult(new CrashReportRequestEvent(false, "Invalid crash report format"));
             return;
         }
-        
-        // Валідуємо розмір файлу
-        if (content == null || content.length() > crashComponent.maxFileSize) {
-            sendResult(new CrashReportRequestEvent(false, 
+        byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+        if (contentBytes.length > crashComponent.maxFileSize) {
+            sendResult(new CrashReportRequestEvent(false,
                 String.format("File size exceeds limit of %d bytes", crashComponent.maxFileSize)));
             return;
         }
-        
+
         // Валідуємо контент
         if (!crashComponent.isValidCrashReport(content)) {
             sendResult(new CrashReportRequestEvent(false, "Invalid crash report format"));
             return;
         }
-        
+
+        // Перевіряємо rate limiting (перевірка і облік одним атомарним кроком)
+        if (!crashComponent.tryAcquire(username, client.ipAddress)) {
+            sendResult(new CrashReportRequestEvent(false, "Rate limit exceeded"));
+            return;
+        }
+
         try {
             String clientName = client.profile == null ? "unknown" : client.profile.getTitle();
             // Створюємо директорію користувача
             Path userDir = crashComponent.getUserCrashDir(clientName, username);
-            
-            // Генеруємо ім'я файлу
-            String generatedFilename = generateFilename(filename);
-            Path filePath = userDir.resolve(generatedFilename);
-            
-            // Зберігаємо файл
-            Files.write(filePath, content.getBytes());
-            
-            // Записуємо лог
-            crashComponent.recordUserReport(username);
-            
-            logger.info("Crash report saved for user '{}': {}", username, filePath.toAbsolutePath());
-            
-            // Додаємо додаткову інформацію до файлу
-            String enrichedContent = enrichCrashReport(content, client);
-            Files.write(filePath, enrichedContent.getBytes());
-            
-            sendResult(new CrashReportRequestEvent(true, "Crash report saved successfully", 
-                filePath.toAbsolutePath().toString()));
-            
+
+            // Додаємо додаткову інформацію до звіту і зберігаємо одним записом
+            byte[] data = enrichCrashReport(content, client).getBytes(StandardCharsets.UTF_8);
+            String quotaError = crashComponent.checkQuota(userDir, data.length);
+            if (quotaError != null) {
+                sendResult(new CrashReportRequestEvent(false, quotaError));
+                return;
+            }
+            Path filePath = crashComponent.store(userDir, generateFilename(filename), data);
+
+            logger.info("Crash report saved for user '{}': {}", username, filePath);
+
+            // Клієнту повертаємо лише відносний шлях, без структури каталогів сервера
+            sendResult(new CrashReportRequestEvent(true, "Crash report saved successfully",
+                crashComponent.getCrashDir().relativize(filePath).toString()));
+
         } catch (IOException e) {
             logger.error("Failed to save crash report for user '{}'", username, e);
-            sendResult(new CrashReportRequestEvent(false, "Failed to save crash report: " + e.getMessage()));
+            sendResult(new CrashReportRequestEvent(false, "Failed to save crash report"));
         }
     }
-    
+
     private CrashReportComponent getCrashReportComponent() {
         if (server.config.components != null) {
             for (var component : server.config.components.values()) {
@@ -122,13 +123,17 @@ public class CrashReportResponse extends SimpleResponse {
         return String.format("crash-%s.txt", timestamp);
     }
     
+    private static String oneLine(String value) {
+        return value == null ? "" : value.replaceAll("[\\r\\n]", " ");
+    }
+
     private String enrichCrashReport(String originalContent, Client client) {
         StringBuilder enriched = new StringBuilder();
         
         // Додаємо метаінформацію
         enriched.append("// Crash report submitted via GravitLauncher\n");
-        enriched.append("// Submitted by: ").append(client.username).append("\n");
-        enriched.append("// Client IP: ").append(client.ipAddress).append("\n");
+        enriched.append("// Submitted by: ").append(oneLine(client.username)).append("\n");
+        enriched.append("// Client IP: ").append(oneLine(client.ipAddress)).append("\n");
         enriched.append("// Submission time: ").append(LocalDateTime.now()).append("\n");
         enriched.append("// Launcher version: ").append(server.config.projectName).append("\n");
         enriched.append("\n");
