@@ -2,6 +2,7 @@ package pro.gravit.launchserver.modules.island;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import pro.gravit.launcher.base.modules.LauncherInitContext;
 import pro.gravit.launcher.base.modules.LauncherModule;
 import pro.gravit.launcher.base.modules.LauncherModuleInfo;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -32,6 +34,12 @@ public class IslandModule extends LauncherModule {
     private IslandConfig config;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private ExecutorService executor;
+    private LaunchServer server;
+    /**
+     * setProfile is also sent again after a reconnect: the island must not be started twice in a row for one player
+     */
+    private static final long DEDUPE_MILLIS = 60_000;
+    private final ConcurrentHashMap<String, Long> recentStarts = new ConcurrentHashMap<>();
 
     public IslandModule() {
         super(new LauncherModuleInfo(MODULE_NAME, MODULE_VERSION));
@@ -43,9 +51,13 @@ public class IslandModule extends LauncherModule {
     }
 
     private void finishInit(LaunchServerFullInitEvent event) {
-        LaunchServer server = event.server;
+        this.server = event.server;
         loadConfig(server);
-        executor = Executors.newCachedThreadPool();
+        executor = Executors.newCachedThreadPool((r) -> {
+            Thread thread = new Thread(r, "IslandModule");
+            thread.setDaemon(true);
+            return thread;
+        });
 
         server.authHookManager.setProfileHook.registerHook((response, client) -> {
             try {
@@ -56,7 +68,27 @@ public class IslandModule extends LauncherModule {
             return false; // Don't interrupt the auth flow
         });
 
-        LogHelper.info("IslandModule initialized");
+        LogHelper.info("IslandModule initialized. Enabled: %s", config.enabled);
+        if (config.enabled) {
+            LogHelper.debug("Allowed profiles: %s", config.profiles);
+            validateConfig();
+        }
+    }
+
+    private void validateConfig() {
+        try {
+            URL url = new URL(config.apiUrl);
+            String host = url.getHost();
+            boolean loopback = "localhost".equalsIgnoreCase(host) || host.startsWith("127.") || "::1".equals(host) || "[::1]".equals(host);
+            if (!"https".equalsIgnoreCase(url.getProtocol()) && !loopback) {
+                LogHelper.warning("IslandModule: api_url %s is not HTTPS, the api_key is sent in clear text", config.apiUrl);
+            }
+        } catch (Exception e) {
+            LogHelper.error("IslandModule: invalid api_url %s: %s", config.apiUrl, e.getMessage());
+        }
+        if (config.apiKey == null || config.apiKey.isEmpty() || "your_secret_token_here".equals(config.apiKey)) {
+            LogHelper.warning("IslandModule: api_key is not configured");
+        }
     }
 
     private void loadConfig(LaunchServer server) {
@@ -74,6 +106,10 @@ public class IslandModule extends LauncherModule {
                 try (BufferedReader reader = Files.newBufferedReader(configPath)) {
                     config = gson.fromJson(reader, IslandConfig.class);
                 }
+                if (config == null) { // empty file
+                    LogHelper.warning("IslandModule: config %s is empty, using defaults", configPath);
+                    config = new IslandConfig();
+                }
             }
         } catch (IOException e) {
             LogHelper.error(e);
@@ -82,20 +118,47 @@ public class IslandModule extends LauncherModule {
     }
 
     private void onSetProfile(SetProfileResponse response, Client client) {
-        if (!config.enabled) return;
+        if (!config.enabled) {
+            return;
+        }
         
-        // In SetProfileResponse, client.profile is set just before the hook
-        ClientProfile profile = client.profile;
-        if(profile == null) return;
+        // Find profile by name from response
+        ClientProfile profile = null;
+        for (ClientProfile p : server.getProfiles()) {
+            if (p.getTitle().equals(response.client)) {
+                profile = p;
+                break;
+            }
+        }
+
+        if(profile == null) {
+            LogHelper.warning("Client profile %s not found for user %s", response.client, client.username);
+            return;
+        }
         
         // Check if the profile UUID is in the allowed list
-        if (config.profiles == null || !config.profiles.contains(profile.getUUID().toString())) {
+        String profileUUID = profile.getUUID().toString();
+        if (config.profiles == null || !config.profiles.contains(profileUUID)) {
+            LogHelper.debug("Profile %s (UUID: %s) is not in allowed list. Allowed: %s", profile.getTitle(), profileUUID, config.profiles);
             return;
         }
 
         String apiUrl = config.apiUrl;
         String username = client.username;
         UUID uuid = client.uuid;
+        if (username == null || username.isEmpty() || uuid == null) {
+            LogHelper.warning("IslandModule: cannot start an island for an unauthorized client");
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Long previous = recentStarts.put(username + "|" + profileUUID, now);
+        if (previous != null && now - previous < DEDUPE_MILLIS) {
+            LogHelper.debug("Island start for %s on %s was requested %d ms ago, skipping", username, profile.getTitle(), now - previous);
+            return;
+        }
+        if (recentStarts.size() > 10_000) {
+            recentStarts.values().removeIf(t -> now - t >= DEDUPE_MILLIS);
+        }
         
         final String targetUrl = apiUrl;
         final String finalUsername = username;
@@ -121,8 +184,10 @@ public class IslandModule extends LauncherModule {
 
             // Prepare JSON body. UUID without dashes as requested (though standard is usually with dashes, user logs imply no dashes for DB, but let's stick to user request "uuid-гравця-без-дефісів-або-з-ними" - user said "without or with", but logs showed "011b1b61...". 
             // The user's provided code had `.replace("-", "")`. I will keep that logic as it seems safer for external systems that might not handle dashes well if they expect raw hex.
-            String jsonInputString = String.format("{\"username\": \"%s\", \"uuid\": \"%s\"}", 
-                    username, uuid.toString().replace("-", ""));
+            JsonObject body = new JsonObject();
+            body.addProperty("username", username);
+            body.addProperty("uuid", uuid.toString().replace("-", ""));
+            String jsonInputString = body.toString(); // properly escaped, unlike string formatting
 
             try (OutputStream os = conn.getOutputStream()) {
                 byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
@@ -133,11 +198,11 @@ public class IslandModule extends LauncherModule {
             if (responseCode >= 200 && responseCode < 300) {
                 LogHelper.debug("Island API request successful: %d", responseCode);
             } else {
-                LogHelper.warning("Island API request failed: %d", responseCode);
+                LogHelper.warning("Island API request for %s failed: HTTP %d", username, responseCode);
             }
 
         } catch (Exception e) {
-            LogHelper.warning("Failed to send request to Island API: %s", e.getMessage());
+            LogHelper.warning("Failed to send request to Island API for %s: %s", username, e.getMessage());
         } finally {
             if(conn != null) {
                 conn.disconnect();

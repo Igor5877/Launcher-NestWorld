@@ -529,7 +529,8 @@ public class AzuriomCoreProvider extends AuthCoreProvider implements AuthSupport
             }
 
             if (!result.isSuccess()) {
-                throw new pro.gravit.launchserver.auth.AuthException("Authentication failed: " + result.toString());
+                logger.debug("Azuriom rejected the login of '{}': {}", login, result);
+                throw new pro.gravit.launchserver.auth.AuthException("Authentication failed");
             }
 
             com.azuriom.azauth.model.User azuriomUser = result.getSuccessResult();

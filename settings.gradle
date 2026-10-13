@@ -8,7 +8,11 @@ include 'LauncherStart'
 include 'ServerWrapper'
 include 'LaunchServer'
 include 'LaunchServer-IslandModule'
-include 'modules'
-file('modules').eachDir { sub ->
-    if (sub.name.endsWith('_module') || sub.name.endsWith('_swmodule') || sub.name.endsWith('_lmodule')) include 'modules:' + sub.name
+include 'LaunchServer-AccessExportModule'
+// 'modules' is a git submodule (see .gitmodules): a clone without --recursive must still be able to build the core
+if (file('modules').isDirectory()) {
+    include 'modules'
+    file('modules').eachDir { sub ->
+        if (sub.name.endsWith('_module') || sub.name.endsWith('_swmodule') || sub.name.endsWith('_lmodule')) include 'modules:' + sub.name
+    }
 }

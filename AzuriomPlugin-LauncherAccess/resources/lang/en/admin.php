@@ -1,0 +1,83 @@
+<?php
+
+return [
+    'permission' => 'Manage access to launcher profiles and mods',
+
+    'nav' => [
+        'title' => 'Launcher access',
+        'access' => 'Who may use what',
+        'overview' => 'Who has what',
+        'settings' => 'Settings',
+    ],
+
+    'access' => [
+        'title' => 'Access to profiles and mods',
+        'who' => 'Who',
+        'who_placeholder' => 'Start typing a player name or a role…',
+        'who_help' => 'Pick a player or a role (a group of people). A role applies to every player that has it.',
+        'role' => 'role',
+        'empty_catalog' => 'The list of profiles and mods is empty. It is filled by the LaunchServer module or by the JSON import on the settings page.',
+        'limited' => 'Limited: only the selected see it',
+        'public' => 'Public: everybody',
+        'mod_limited' => 'Hidden: only the selected see it',
+        'inherited' => 'already given by the role',
+        'public_help' => 'This profile or mod is available to everybody, so ticking it changes nothing. To restrict it set "limited": true in the profile file on LaunchServer.',
+        'mod_note' => 'A mod hidden with "limited" is hidden in the launcher interface only. This does not protect the files: use a separate profile for mods that must stay secret.',
+        'no_game_id' => 'This player has no game id yet: the permissions are written after the first login through the launcher.',
+        'via_role' => 'The role ":role" already gives part of the access (marked).',
+        'saved' => 'Saved, the permissions were written for LaunchServer.',
+        'saved_no_sync' => 'Saved. Automatic writing is off: run the synchronization on the settings page.',
+        'sync_failed' => 'The rules were saved but writing the permissions for LaunchServer failed. Check the table settings and the error log.',
+    ],
+
+    'overview' => [
+        'title' => 'Who has what',
+        'profile' => 'Profile',
+        'everyone' => 'Public: everybody',
+        'nobody' => 'Nobody selected.',
+        'roles' => 'Roles',
+        'users' => 'Players',
+        'members' => ':count players',
+    ],
+
+    'settings' => [
+        'title' => 'Launcher access settings',
+        'table_section' => 'LaunchServer permissions table',
+        'table' => 'Table',
+        'uuid_column' => 'UUID column',
+        'permission_column' => 'Permission column',
+        'max_length' => 'Max permission length',
+        'table_missing' => 'The table or the columns do not exist in the database.',
+        'auto_sync' => 'Write the permissions right after a change',
+        'auto_sync_help' => 'The plugin also reconciles everything every hour.',
+        'sync_section' => 'Synchronization',
+        'stats' => 'Profiles: :profiles, mods: :mods, rules: :rules, rows written by the plugin: :rows.',
+        'preview_button' => 'Show what would change',
+        'sync_button' => 'Synchronize now',
+        'preview' => 'Preview (nothing was written): :players players, :insert rows would be added, :delete removed.',
+        'synced' => 'Done: :players players, :insert rows added, :delete removed.',
+        'catalog_section' => 'Profiles and mods',
+        'catalog_help' => 'The list is normally kept up to date by the LaunchServer module. As a fallback paste the profile JSON here (the files from the LaunchServer profiles directory).',
+        'synced_at' => 'Last update from LaunchServer: :date',
+        'import_label' => 'Profile JSON',
+        'import_button' => 'Import',
+        'imported' => 'Imported :profiles profiles and :mods mods.',
+        'import_empty' => 'No profile was found in the given data.',
+        'import_problems' => 'Some entries were skipped:',
+    ],
+
+    'warnings' => [
+        'no_game_id' => 'player without a game_id',
+        'mod_without_profile' => 'mod selected without its profile',
+        'too_long' => 'permission too long for the column',
+        'bad_profile' => 'invalid profile UUID',
+        'bad_mod' => 'invalid mod name',
+    ],
+
+    'logs' => [
+        'rules' => 'Launcher access changed',
+        'settings' => 'Launcher access settings changed',
+        'import' => 'Launcher profiles imported',
+        'synced' => 'Launcher permissions synchronized',
+    ],
+];

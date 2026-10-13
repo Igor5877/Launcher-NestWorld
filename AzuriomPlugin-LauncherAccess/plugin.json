@@ -1,0 +1,15 @@
+{
+    "id": "launcheraccess",
+    "name": "Launcher Access",
+    "description": "Admin panel for GravitLauncher: choose which players or roles may see which launcher profiles and mods. Writes the permissions LaunchServer reads from the user_permissions table.",
+    "version": "0.1.0",
+    "url": "https://github.com/Igor5877/Launcher-NestWorld",
+    "authors": [
+        "NestWorld"
+    ],
+    "azuriom_api": "1.1.0",
+    "providers": [
+        "\\Azuriom\\Plugin\\LauncherAccess\\Providers\\LauncherAccessServiceProvider",
+        "\\Azuriom\\Plugin\\LauncherAccess\\Providers\\RouteServiceProvider"
+    ]
+}

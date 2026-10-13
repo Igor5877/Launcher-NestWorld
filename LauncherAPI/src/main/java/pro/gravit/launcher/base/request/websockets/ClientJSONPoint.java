@@ -9,12 +9,16 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
+import java.nio.ByteBuffer;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -32,6 +36,13 @@ public abstract class ClientJSONPoint implements WebSocket.Listener {
     private final Object syncObject = new Object();
     private final Object sendSyncObject = new Object();
     private volatile StringBuilder builder = new StringBuilder();
+    /**
+     * LaunchServer pings every 30 seconds. After a network change (Wi-Fi to mobile, VPN, sleep) the old TCP connection
+     * dies silently and nothing tells us, so a connection that stays quiet for this long is treated as dead.
+     */
+    private static final long DEAD_AFTER_MILLIS = TimeUnit.SECONDS.toMillis(95);
+    private volatile long lastActivity = System.currentTimeMillis();
+    private ScheduledExecutorService watchdog;
 
     public ClientJSONPoint(final String uri) throws SSLException {
         this(URI.create(uri));
@@ -65,11 +76,37 @@ public abstract class ClientJSONPoint implements WebSocket.Listener {
 
     public void open() throws Exception {
         webSocket = webSocketBuilder.buildAsync(uri, this).get();
+        lastActivity = System.currentTimeMillis();
+        startWatchdog();
+    }
+
+    private synchronized void startWatchdog() {
+        if (watchdog != null) return;
+        watchdog = Executors.newSingleThreadScheduledExecutor((r) -> {
+            Thread thread = new Thread(r, "WebSocket watchdog");
+            thread.setDaemon(true);
+            return thread;
+        });
+        watchdog.scheduleWithFixedDelay(() -> {
+            try {
+                WebSocket ws = webSocket;
+                if (ws == null || isClosed || ws.isInputClosed() || ws.isOutputClosed()) return;
+                if (System.currentTimeMillis() - lastActivity > DEAD_AFTER_MILLIS) {
+                    LogHelper.warning("WebSocket connection is silent for too long, treating it as dead");
+                    ws.abort();
+                    onDisconnect(1006, "Connection lost");
+                }
+            } catch (Throwable e) {
+                LogHelper.error(e);
+            }
+        }, 15, 15, TimeUnit.SECONDS);
     }
 
     public void openAsync(Runnable onConnect, Consumer<Throwable> onFail) {
         webSocketBuilder.buildAsync(uri, this).thenAccept((e) -> {
             this.webSocket = e;
+            lastActivity = System.currentTimeMillis();
+            startWatchdog();
             onConnect.run();
         }).exceptionally((ex) -> {
             onFail.accept(ex);
@@ -79,6 +116,7 @@ public abstract class ClientJSONPoint implements WebSocket.Listener {
 
     @Override
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+        lastActivity = System.currentTimeMillis();
         synchronized (syncObject) {
             builder.append(data);
             if(last) {
@@ -89,6 +127,18 @@ public abstract class ClientJSONPoint implements WebSocket.Listener {
             }
         }
         return WebSocket.Listener.super.onText(webSocket, data, last);
+    }
+
+    @Override
+    public CompletionStage<?> onPing(WebSocket webSocket, ByteBuffer message) {
+        lastActivity = System.currentTimeMillis();
+        return WebSocket.Listener.super.onPing(webSocket, message);
+    }
+
+    @Override
+    public CompletionStage<?> onPong(WebSocket webSocket, ByteBuffer message) {
+        lastActivity = System.currentTimeMillis();
+        return WebSocket.Listener.super.onPong(webSocket, message);
     }
 
     @Override
@@ -115,6 +165,8 @@ public abstract class ClientJSONPoint implements WebSocket.Listener {
     abstract void onOpen();
 
     public void close() throws InterruptedException {
+        ScheduledExecutorService w = watchdog;
+        if (w != null) w.shutdownNow();
         webSocket.abort();
     }
 

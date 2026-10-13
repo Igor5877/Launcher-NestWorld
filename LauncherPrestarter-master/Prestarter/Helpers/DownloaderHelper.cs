@@ -9,6 +9,11 @@ namespace Prestarter.Helpers
     {
         public static void UnpackZip(string zipPath, string targetPath, bool skipFirstDirectory)
         {
+            // Entries are written only below this directory ("Zip Slip": names like ..\..\x or C:\x must not escape)
+            var fullTargetPath = Path.GetFullPath(targetPath);
+            if (!fullTargetPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                fullTargetPath += Path.DirectorySeparatorChar;
+
             using (var archive = ZipFile.OpenRead(zipPath))
             {
                 string rootFolder = null;
@@ -35,7 +40,9 @@ namespace Prestarter.Helpers
 
                     fileName = fileName.Replace('/', '\\');
                     if (string.IsNullOrEmpty(fileName)) continue;
-                    var path = Path.Combine(targetPath, fileName);
+                    var path = Path.GetFullPath(Path.Combine(targetPath, fileName));
+                    if (!path.StartsWith(fullTargetPath, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Unsafe path in archive: " + entry.FullName);
                     if (entry.FullName.EndsWith("/"))
                         Directory.CreateDirectory(path);
                     else

@@ -509,7 +509,7 @@ public final class SecurityHelper {
 
             // Convert to bytes
             bytes = bits / Byte.SIZE;
-            assert bits % Byte.SIZE == 0;
+            assert bits < 0 || bits % Byte.SIZE == 0; // PLAIN has no fixed size (-1)
         }
 
         public static DigestAlgorithm byName(String name) {

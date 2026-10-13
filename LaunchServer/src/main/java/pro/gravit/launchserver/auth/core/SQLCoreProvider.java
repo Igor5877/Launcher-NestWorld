@@ -81,7 +81,7 @@ public class SQLCoreProvider extends AbstractSQLCoreProvider implements AuthSupp
 
     @Override
     protected SQLUser constructUser(ResultSet set) throws SQLException {
-        return set.next() ? new SQLUser(UUID.fromString(set.getString(uuidColumn)), set.getString(usernameColumn),
+        return set.next() ? new SQLUser(toUUID(set.getString(uuidColumn)), set.getString(usernameColumn),
                 set.getString(accessTokenColumn), set.getString(serverIDColumn), set.getString(passwordColumn), set.getLong(hardwareIdColumn)) : null;
     }
 

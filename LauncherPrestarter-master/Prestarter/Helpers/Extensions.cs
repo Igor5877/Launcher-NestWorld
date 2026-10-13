@@ -43,10 +43,11 @@ namespace Prestarter.Helpers
             HashAlgorithm hashAlgorithm,
             Stream destination, Action<float> progress)
         {
+            // The data has to go through the hashing stream, otherwise the hash is computed over nothing
             var hashingProxyStream = new HashProxyStream(destination, hashAlgorithm);
-            client.Download(requestUri, destination, progress);
+            client.Download(requestUri, hashingProxyStream, progress);
             var downloadedHash = string.Join("", hashingProxyStream.GetHash().Select(item => item.ToString("x2")));
-            if (downloadedHash == hash)
+            if (!string.Equals(downloadedHash, hash.Trim(), StringComparison.OrdinalIgnoreCase))
                 throw new Exception(string.Format(I18n.HashsumIsIncorrectError, downloadedHash, hash));
         }
 

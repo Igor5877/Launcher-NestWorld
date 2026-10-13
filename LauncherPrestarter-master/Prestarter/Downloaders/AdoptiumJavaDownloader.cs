@@ -19,7 +19,8 @@ namespace Prestarter.Downloaders
         {
             var url = Environment.Is64BitOperatingSystem ? x64Url : x86Url;
             var name = GetName();
-            var zipPath = Path.Combine(javaPath, "java.zip");
+            // the archive lives next to the runtime directory: the old runtime is deleted before unpacking
+            var zipPath = javaPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + ".java.zip";
             reporter.SetStatus(string.Format(I18n.DownloadingStatus, name));
             reporter.SetProgress(0);
             reporter.SetProgressBarState(ProgressBarState.Progress);
@@ -29,19 +30,24 @@ namespace Prestarter.Downloaders
             }
 
             reporter.SetProgressBarState(ProgressBarState.Marqee);
-            if (File.Exists(javaPath))
+            try
             {
-                reporter.SetStatus(I18n.DeletingOldJavaStatus);
-                Directory.Delete(javaPath, true);
-            }
+                if (Directory.Exists(javaPath))
+                {
+                    reporter.SetStatus(I18n.DeletingOldJavaStatus);
+                    Directory.Delete(javaPath, true);
+                }
 
-            reporter.SetStatus(string.Format(I18n.UnpackingStatus, name));
+                reporter.SetStatus(string.Format(I18n.UnpackingStatus, name));
 
-            if (!Directory.Exists(javaPath))
                 Directory.CreateDirectory(javaPath);
-            
-            DownloaderHelper.UnpackZip(zipPath, javaPath, true);
-            File.Delete(zipPath);
+
+                DownloaderHelper.UnpackZip(zipPath, javaPath, true);
+            }
+            finally
+            {
+                File.Delete(zipPath);
+            }
         }
 
         public string GetName()

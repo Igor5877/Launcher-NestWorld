@@ -5,7 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.gravit.launcher.base.events.request.AuthRequestEvent;
 import pro.gravit.launcher.base.request.auth.AuthRequest;
-import pro.gravit.launcher.base.request.auth.password.AuthOAuthPassword;
 import pro.gravit.launchserver.auth.AuthException;
 import pro.gravit.launchserver.auth.AuthProviderPair;
 import pro.gravit.launchserver.manangers.AuthManager;
@@ -42,11 +41,17 @@ public class AuthResponse extends SimpleResponse {
             AuthContext context = server.authManager.makeAuthContext(clientData, authType, pair, login, client, ip);
             password = server.authManager.decryptPassword(password);
             server.authManager.check(context, password);
-            if (!(password instanceof AuthOAuthPassword)) {
-                server.authHookManager.preHook.hook(context, clientData);
-            }
+            // Every auth type goes through the hooks (whitelist, rate limiter, ...). For OAuth the login is not known yet,
+            // so login based hooks skip it and the user based checks run in postHook
+            server.authHookManager.preHook.hook(context, clientData);
             context.report = server.authManager.auth(context, password);
-            server.authHookManager.postHook.hook(context, clientData);
+            try {
+                server.authHookManager.postHook.hook(context, clientData);
+            } catch (HookException e) {
+                // auth() already marked the connection as authorized: do not leave it that way when a hook rejects the user
+                server.authManager.resetAuth(clientData);
+                throw e;
+            }
             result.permissions = context.report.session() != null ? (context.report.session().getUser() != null ? context.report.session().getUser().getPermissions() : null) : null;
             if (context.report.isUsingOAuth()) {
                 result.oauth = new AuthRequestEvent.OAuthRequestEvent(context.report.oauthAccessToken(), context.report.oauthRefreshToken(), context.report.oauthExpire());
