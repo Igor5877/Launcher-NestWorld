@@ -1,0 +1,11 @@
+{
+    "name": "nestworld/launcher-access",
+    "type": "azuriom-plugin",
+    "description": "Launcher profile and mod access for Azuriom",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Azuriom\\Plugin\\LauncherAccess\\": "src/"
+        }
+    }
+}
